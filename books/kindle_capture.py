@@ -425,7 +425,6 @@ def _is_sandbox_browser_error(message: str) -> bool:
         "permission denied (1100)",
         "signal=sigabrt",
         "signal=sigtrap",
-        "target page, context or browser has been closed",
     ]
     lowered = message.lower()
     return any(p in lowered for p in patterns)
