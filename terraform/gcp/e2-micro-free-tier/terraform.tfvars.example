@@ -1,0 +1,10 @@
+project_id      = "your-gcp-project-id"
+region          = "us-central1"
+zone            = "us-central1-a"
+vm_name         = "tf-e2-micro"
+ssh_source_cidr = "0.0.0.0/0"
+login_user      = "vmadmin"
+
+# Optional
+# ssh_user       = "youruser"
+# ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... youruser@host"
