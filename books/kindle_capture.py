@@ -31,8 +31,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--browser",
         choices=["chrome", "chromium"],
-        default="chrome",
-        help="Browser engine to launch. Default: chrome.",
+        default="chromium",
+        help="Browser engine to launch. Default: chromium.",
     )
     parser.add_argument(
         "--headless",
@@ -54,6 +54,11 @@ def parse_args() -> argparse.Namespace:
         default="books",
         help="Supabase Storage bucket name. Default: books.",
     )
+    parser.add_argument(
+        "--playwright-ws-endpoint",
+        default=os.getenv("PLAYWRIGHT_WS_ENDPOINT"),
+        help="Remote Playwright endpoint (ws://... or http(s)://... for CDP).",
+    )
     args = parser.parse_args()
     if args.pages is not None and args.pages <= 0:
         parser.error("--pages must be greater than 0")
@@ -63,12 +68,15 @@ def parse_args() -> argparse.Namespace:
 def resolve_target_dir(directory_arg: str) -> Path:
     root = Path.cwd()
     data_root = root / "data"
+    books_data_root = root / "books" / "data"
     candidate = Path(directory_arg)
     if not candidate.is_absolute():
         if candidate.parts and candidate.parts[0] == "data":
             candidate = root / candidate
         else:
             candidate = data_root / candidate
+            if not candidate.exists():
+                candidate = books_data_root / directory_arg
     candidate = candidate.resolve()
     if not candidate.exists() or not candidate.is_dir():
         raise FileNotFoundError(f"Directory not found: {candidate}")
@@ -410,13 +418,52 @@ def build_pdf(image_dir: Path, pdf_path: Path) -> None:
         img.close()
 
 
+def _is_sandbox_browser_error(message: str) -> bool:
+    patterns = [
+        "crashpad",
+        "operation not permitted",
+        "permission denied (1100)",
+        "signal=sigabrt",
+        "signal=sigtrap",
+        "target page, context or browser has been closed",
+    ]
+    lowered = message.lower()
+    return any(p in lowered for p in patterns)
+
+
 def launch_browser(playwright, args):
+    if args.playwright_ws_endpoint:
+        endpoint = args.playwright_ws_endpoint
+        if endpoint.startswith("ws://") or endpoint.startswith("wss://"):
+            browser = playwright.chromium.connect(endpoint)
+        else:
+            browser = playwright.chromium.connect_over_cdp(endpoint)
+        context = browser.new_context(viewport={"width": 1600, "height": 1000})
+        return browser, context
+
+    launch_attempts: list[dict[str, object]] = []
     if args.browser == "chrome":
-        browser = playwright.chromium.launch(channel="chrome", headless=args.headless)
-    else:
-        browser = playwright.chromium.launch(headless=args.headless)
-    context = browser.new_context(viewport={"width": 1600, "height": 1000})
-    return browser, context
+        launch_attempts.append({"channel": "chrome", "headless": args.headless})
+    launch_attempts.append({"headless": args.headless})
+
+    errors: list[str] = []
+    for launch_kwargs in launch_attempts:
+        try:
+            browser = playwright.chromium.launch(**launch_kwargs)
+            context = browser.new_context(viewport={"width": 1600, "height": 1000})
+            return browser, context
+        except Exception as exc:
+            errors.append(str(exc))
+            continue
+
+    merged = "\n\n".join(errors)
+    if _is_sandbox_browser_error(merged):
+        raise RuntimeError(
+            "Browser launch failed due to sandbox restrictions (Crashpad/Mach permission errors). "
+            "Run outside sandbox, or set --playwright-ws-endpoint / PLAYWRIGHT_WS_ENDPOINT "
+            "to use a remote browser."
+        )
+    raise RuntimeError(f"Browser launch failed.\n{merged}")
 
 
 def run_ocr_m7(input_pdf: Path, output_pdf: Path) -> None:
