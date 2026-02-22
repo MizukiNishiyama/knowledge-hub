@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
+import unicodedata
 from pathlib import Path
 from urllib import error, parse, request
 from typing import Optional
@@ -219,6 +220,16 @@ def to_repo_relative(path: Path) -> str:
         idx = parts.index("knowledge-hub")
         return "/".join(parts[idx + 1 :])
     return str(p)
+
+
+def slugify_filename(name: str) -> str:
+    base, ext = os.path.splitext(name)
+    normalized = unicodedata.normalize("NFKD", base)
+    ascii_safe = normalized.encode("ascii", "ignore").decode("ascii") or normalized
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "_", ascii_safe).strip("_")
+    if not slug:
+        slug = "file"
+    return f"{slug}{ext}"
 
 
 def is_signin_page(page) -> bool:
@@ -552,7 +563,8 @@ def main() -> int:
     if not args.skip_supabase:
         supabase_url, supabase_key = load_supabase_config()
         book_code, title = derive_book_fields(book_name)
-        storage_path = f"{book_code}/{final_pdf_path.name}"
+        storage_file = slugify_filename(final_pdf_path.name)
+        storage_path = f"{book_code}/{storage_file}"
         public_url = upload_pdf_to_supabase(
             supabase_url=supabase_url,
             supabase_key=supabase_key,
