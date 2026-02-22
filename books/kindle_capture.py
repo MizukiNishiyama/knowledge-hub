@@ -2,12 +2,14 @@
 from __future__ import annotations
 import argparse
 import hashlib
+import json
 import os
 import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+from urllib import error, parse, request
 from typing import Optional
 
 
@@ -42,6 +44,16 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip OCR overlay and keep image-only PDF as final output.",
     )
+    parser.add_argument(
+        "--skip-supabase",
+        action="store_true",
+        help="Skip upload to Supabase Storage and DB update.",
+    )
+    parser.add_argument(
+        "--supabase-bucket",
+        default="books",
+        help="Supabase Storage bucket name. Default: books.",
+    )
     args = parser.parse_args()
     if args.pages is not None and args.pages <= 0:
         parser.error("--pages must be greater than 0")
@@ -74,6 +86,34 @@ def read_url_from_metadata(book_dir: Path) -> str:
     return m.group(0).strip()
 
 
+def read_metadata_kv(book_dir: Path) -> tuple[Path, dict[str, str]]:
+    metadata_path = book_dir / "metadata.md"
+    if not metadata_path.exists():
+        raise FileNotFoundError(f"metadata.md not found: {metadata_path}")
+    kv: dict[str, str] = {}
+    for line in metadata_path.read_text(encoding="utf-8").splitlines():
+        if ":" not in line:
+            continue
+        k, v = line.split(":", 1)
+        key = k.strip()
+        value = v.strip()
+        if key:
+            kv[key] = value
+    return metadata_path, kv
+
+
+def upsert_metadata_line(metadata_path: Path, key: str, value: str) -> None:
+    lines = metadata_path.read_text(encoding="utf-8").splitlines()
+    target = f"{key}: {value}"
+    for i, line in enumerate(lines):
+        if line.startswith(f"{key}:"):
+            lines[i] = target
+            break
+    else:
+        lines.append(target)
+    metadata_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+
+
 def load_credentials() -> tuple[str, str]:
     from dotenv import load_dotenv
 
@@ -83,6 +123,94 @@ def load_credentials() -> tuple[str, str]:
     if not amazon_id or not amazon_pass:
         raise ValueError("AMAZON_ID / AMAZON_PASS are required in .env")
     return amazon_id, amazon_pass
+
+
+def load_supabase_config() -> tuple[str, str]:
+    supabase_url = os.getenv("SUPABASE_URL") or "https://ayspbkywjnkouxbhuchj.supabase.co"
+    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv(
+        "SUPABASE_ANON_KEY"
+    )
+    if not supabase_key:
+        raise ValueError(
+            "SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_ANON_KEY) is required in .env"
+        )
+    return supabase_url.rstrip("/"), supabase_key
+
+
+def request_json(
+    method: str,
+    url: str,
+    headers: dict[str, str],
+    body: Optional[bytes] = None,
+) -> tuple[int, str]:
+    req = request.Request(url=url, method=method, headers=headers, data=body)
+    try:
+        with request.urlopen(req) as res:
+            return int(res.status), res.read().decode("utf-8", errors="replace")
+    except error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"HTTP {exc.code}: {detail}") from exc
+
+
+def upload_pdf_to_supabase(
+    supabase_url: str,
+    supabase_key: str,
+    bucket: str,
+    object_path: str,
+    pdf_path: Path,
+) -> str:
+    encoded_path = parse.quote(object_path, safe="/")
+    endpoint = f"{supabase_url}/storage/v1/object/{bucket}/{encoded_path}"
+    headers = {
+        "apikey": supabase_key,
+        "Authorization": f"Bearer {supabase_key}",
+        "Content-Type": "application/pdf",
+        "x-upsert": "true",
+    }
+    payload = pdf_path.read_bytes()
+    request_json("POST", endpoint, headers, payload)
+    return f"{supabase_url}/storage/v1/object/public/{bucket}/{encoded_path}"
+
+
+def upsert_book_to_supabase(
+    supabase_url: str,
+    supabase_key: str,
+    payload: dict[str, str],
+) -> None:
+    endpoint = f"{supabase_url}/rest/v1/books?on_conflict=book_code"
+    headers = {
+        "apikey": supabase_key,
+        "Authorization": f"Bearer {supabase_key}",
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates,return=representation",
+    }
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    request_json("POST", endpoint, headers, body)
+
+
+def derive_book_fields(book_name: str) -> tuple[str, str]:
+    m = re.match(r"^([0-9]{3})_(.+)$", book_name)
+    if m:
+        return m.group(1), m.group(2)
+    return "000", book_name
+
+
+def extract_asin(metadata: dict[str, str], source_url: str) -> Optional[str]:
+    if metadata.get("ASIN"):
+        return metadata["ASIN"]
+    if metadata.get("asin"):
+        return metadata["asin"]
+    m = re.search(r"[?&]asin=([A-Z0-9]{10})", source_url)
+    return m.group(1) if m else None
+
+
+def to_repo_relative(path: Path) -> str:
+    p = path.resolve()
+    parts = p.parts
+    if "knowledge-hub" in parts:
+        idx = parts.index("knowledge-hub")
+        return "/".join(parts[idx + 1 :])
+    return str(p)
 
 
 def is_signin_page(page) -> bool:
@@ -334,7 +462,8 @@ def main() -> int:
     target_dir = resolve_target_dir(args.directory)
     book_name = target_dir.name
 
-    url = read_url_from_metadata(target_dir)
+    metadata_path, metadata = read_metadata_kv(target_dir)
+    url = metadata.get("URL") or read_url_from_metadata(target_dir)
     amazon_id, amazon_pass = load_credentials()
 
     screenshots_dir = target_dir / "screenshots"
@@ -373,6 +502,42 @@ def main() -> int:
     else:
         run_ocr_m7(image_pdf_path, final_pdf_path)
         print(f"Final PDF saved (m7 OCR): {final_pdf_path}")
+
+    if not args.skip_supabase:
+        supabase_url, supabase_key = load_supabase_config()
+        book_code, title = derive_book_fields(book_name)
+        storage_path = f"{book_code}/{final_pdf_path.name}"
+        public_url = upload_pdf_to_supabase(
+            supabase_url=supabase_url,
+            supabase_key=supabase_key,
+            bucket=args.supabase_bucket,
+            object_path=storage_path,
+            pdf_path=final_pdf_path,
+        )
+        upsert_book_to_supabase(
+            supabase_url=supabase_url,
+            supabase_key=supabase_key,
+            payload={
+                "book_code": book_code,
+                "title": title,
+                "asin": extract_asin(metadata, url),
+                "source_url": url,
+                "storage_bucket": args.supabase_bucket,
+                "storage_path": storage_path,
+                "metadata_file_path": to_repo_relative(metadata_path),
+                "pdf_file_name": final_pdf_path.name,
+                "language_code": metadata.get("LANGUAGE_CODE")
+                or metadata.get("language_code")
+                or "ja",
+                "status": "ready",
+            },
+        )
+        upsert_metadata_line(metadata_path, "SUPABASE_STORAGE_URL", public_url)
+        upsert_metadata_line(
+            metadata_path, "SUPABASE_STORAGE_PATH", f"{args.supabase_bucket}/{storage_path}"
+        )
+        print(f"Supabase uploaded: {public_url}")
+        print("Supabase DB upsert: public.books")
     return 0
 
 
