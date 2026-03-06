@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -10,19 +10,30 @@ import ReactFlow, {
   Edge,
   ConnectionLineType,
   MarkerType,
+  ReactFlowInstance,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import dagre from "dagre";
 import CustomNode from "./MindMapNode";
-import { MindMapUpdate, SuggestionItem } from "@/data/transcript";
+import { ComparisonTableNode, GanttChartNode, MetricsCardNode } from "./RichNodes";
+import { MindMapUpdate, SuggestionItem, tagLabels } from "@/data/transcript";
 
-const nodeTypes = { custom: CustomNode };
+const nodeTypes = {
+  custom: CustomNode,
+  comparisonTable: ComparisonTableNode,
+  ganttChart: GanttChartNode,
+  metricsCard: MetricsCardNode,
+};
 
-const dagreGraph = new dagre.graphlib.Graph();
-dagreGraph.setDefaultEdgeLabel(() => ({}));
+const DEFAULT_WIDTH = 200;
+const DEFAULT_HEIGHT = 70;
 
-const NODE_WIDTH = 200;
-const NODE_HEIGHT = 80;
+// Rich node sizes for dagre layout
+const richNodeSizes: Record<string, { width: number; height: number }> = {
+  comparisonTable: { width: 380, height: 180 },
+  ganttChart: { width: 520, height: 200 },
+  metricsCard: { width: 300, height: 140 },
+};
 
 function getLayoutedElements(
   nodes: Node[],
@@ -34,7 +45,8 @@ function getLayoutedElements(
   g.setGraph({ rankdir: direction, nodesep: 60, ranksep: 80 });
 
   nodes.forEach((node) => {
-    g.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
+    const size = richNodeSizes[node.type || ""] || { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
+    g.setNode(node.id, { width: size.width, height: size.height });
   });
 
   edges.forEach((edge) => {
@@ -45,11 +57,12 @@ function getLayoutedElements(
 
   const layoutedNodes = nodes.map((node) => {
     const nodeWithPosition = g.node(node.id);
+    const size = richNodeSizes[node.type || ""] || { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
     return {
       ...node,
       position: {
-        x: nodeWithPosition.x - NODE_WIDTH / 2,
-        y: nodeWithPosition.y - NODE_HEIGHT / 2,
+        x: nodeWithPosition.x - size.width / 2,
+        y: nodeWithPosition.y - size.height / 2,
       },
     };
   });
@@ -64,6 +77,8 @@ interface MindMapPanelProps {
 export default function MindMapPanel({ updates }: MindMapPanelProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const rfInstance = useRef<ReactFlowInstance | null>(null);
+  const isFirstUpdate = useRef(true);
 
   const allSuggestions = useMemo(() => {
     const map: Record<string, SuggestionItem[]> = {};
@@ -77,7 +92,6 @@ export default function MindMapPanel({ updates }: MindMapPanelProps) {
   }, [updates]);
 
   useEffect(() => {
-    // Collect all nodes and edges from updates
     const nodeMap = new Map<string, Node>();
     const edgeMap = new Map<string, Edge>();
     const latestUpdate = updates[updates.length - 1];
@@ -85,9 +99,13 @@ export default function MindMapPanel({ updates }: MindMapPanelProps) {
 
     updates.forEach((update) => {
       update.nodes.forEach((n) => {
+        // Determine if this is a rich node type
+        const richType = (n as any).richType as string | undefined;
+        const richData = (n as any).richData as any;
+
         nodeMap.set(n.id, {
           id: n.id,
-          type: "custom",
+          type: richType || "custom",
           position: { x: 0, y: 0 },
           data: {
             label: n.label,
@@ -95,28 +113,28 @@ export default function MindMapPanel({ updates }: MindMapPanelProps) {
             detail: n.detail,
             isNew: newNodeIds.has(n.id),
             suggestions: allSuggestions[n.id] || [],
+            ...richData,
           },
         });
       });
 
       update.edges.forEach((e) => {
         const edgeId = `${e.source}-${e.target}`;
+        const isNew = newNodeIds.has(e.target);
         edgeMap.set(edgeId, {
           id: edgeId,
           source: e.source,
           target: e.target,
           label: e.label,
           type: "smoothstep",
-          animated: newNodeIds.has(e.target),
-          markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12 },
+          animated: isNew,
+          markerEnd: { type: MarkerType.ArrowClosed, width: 10, height: 10 },
           style: {
-            stroke: newNodeIds.has(e.target)
-              ? "rgba(79, 143, 247, 0.6)"
-              : "rgba(144, 144, 168, 0.25)",
-            strokeWidth: newNodeIds.has(e.target) ? 2 : 1.5,
+            stroke: isNew ? "#3b82f6" : "#d1d5db",
+            strokeWidth: isNew ? 2 : 1.2,
           },
           labelStyle: {
-            fill: "rgba(144, 144, 168, 0.5)",
+            fill: "#9ca3af",
             fontSize: 9,
           },
         });
@@ -131,48 +149,90 @@ export default function MindMapPanel({ updates }: MindMapPanelProps) {
 
     setNodes(layoutedNodes);
     setEdges(layoutedEdges);
+
+    setTimeout(() => {
+      if (!rfInstance.current) return;
+
+      if (isFirstUpdate.current) {
+        rfInstance.current.fitView({ padding: 0.3, duration: 500 });
+        isFirstUpdate.current = false;
+        return;
+      }
+
+      const newNodes = layoutedNodes.filter((n) => newNodeIds.has(n.id));
+      if (newNodes.length === 0) return;
+
+      const focusNodeIds = new Set<string>();
+      newNodeIds.forEach((id) => focusNodeIds.add(id));
+      latestUpdate?.edges.forEach((e) => {
+        focusNodeIds.add(e.source);
+        focusNodeIds.add(e.target);
+      });
+
+      const focusNodes = layoutedNodes.filter((n) => focusNodeIds.has(n.id));
+      if (focusNodes.length === 0) return;
+
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      focusNodes.forEach((n) => {
+        const size = richNodeSizes[n.type || ""] || { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
+        minX = Math.min(minX, n.position.x);
+        maxX = Math.max(maxX, n.position.x + size.width);
+        minY = Math.min(minY, n.position.y);
+        maxY = Math.max(maxY, n.position.y + size.height);
+      });
+
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+      const bboxWidth = maxX - minX + 200;
+      const bboxHeight = maxY - minY + 200;
+
+      const flowElement = document.querySelector('.react-flow') as HTMLElement;
+      if (!flowElement) return;
+      const { width: vw, height: vh } = flowElement.getBoundingClientRect();
+
+      const zoomX = vw / bboxWidth;
+      const zoomY = vh / bboxHeight;
+      const targetZoom = Math.min(Math.max(Math.min(zoomX, zoomY), 0.45), 1.2);
+
+      rfInstance.current.setViewport(
+        {
+          x: vw / 2 - centerX * targetZoom,
+          y: vh / 2 - centerY * targetZoom,
+          zoom: targetZoom,
+        },
+        { duration: 600 }
+      );
+    }, 80);
   }, [updates, allSuggestions, setNodes, setEdges]);
 
-  const onInit = useCallback((reactFlowInstance: any) => {
+  const onInit = useCallback((instance: ReactFlowInstance) => {
+    rfInstance.current = instance;
     setTimeout(() => {
-      reactFlowInstance.fitView({ padding: 0.2, duration: 600 });
+      instance.fitView({ padding: 0.3, duration: 500 });
     }, 100);
   }, []);
 
-  // Fit view on each update
-  useEffect(() => {
-    // This will re-trigger fit view when nodes change
-  }, [nodes]);
-
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200">
         <div className="flex items-center gap-3">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 relative">
-            <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping opacity-50" />
+          <div className="w-2 h-2 rounded-full bg-emerald-500 relative">
+            <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald-500 animate-ping opacity-50" />
           </div>
-          <h2 className="text-sm font-semibold tracking-wide text-white/90">
-            STRUCTURE MAP
+          <h2 className="text-[13px] font-semibold tracking-wide text-gray-700 uppercase">
+            Structure Map
           </h2>
         </div>
-        <div className="flex items-center gap-3 text-[10px] text-white/30">
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-blue-500/50" /> Topic
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500/50" /> Decision
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-purple-500/50" /> Action
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-rose-500/50" /> Risk
-          </span>
+        <div className="flex items-center gap-2 text-[10px] text-gray-400">
+          {(["fact", "proposal", "concern", "decision", "action"] as const).map((tag) => (
+            <span key={tag} className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full" style={{ background: tagLabels[tag].color }} />
+              {tagLabels[tag].label}
+            </span>
+          ))}
         </div>
       </div>
 
-      {/* React Flow */}
       <div className="flex-1">
         <ReactFlow
           nodes={nodes}
@@ -182,21 +242,12 @@ export default function MindMapPanel({ updates }: MindMapPanelProps) {
           onInit={onInit}
           nodeTypes={nodeTypes}
           connectionLineType={ConnectionLineType.SmoothStep}
-          fitView
-          fitViewOptions={{ padding: 0.2 }}
-          minZoom={0.3}
+          minZoom={0.2}
           maxZoom={1.5}
           proOptions={{ hideAttribution: true }}
         >
-          <Background
-            color="rgba(144, 144, 168, 0.05)"
-            gap={24}
-            size={1}
-          />
-          <Controls
-            showInteractive={false}
-            position="bottom-right"
-          />
+          <Background color="#e5e7eb" gap={20} size={1} />
+          <Controls showInteractive={false} position="bottom-right" />
         </ReactFlow>
       </div>
     </div>

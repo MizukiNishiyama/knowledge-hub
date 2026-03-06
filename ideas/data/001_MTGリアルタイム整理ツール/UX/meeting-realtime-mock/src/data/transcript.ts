@@ -5,7 +5,20 @@ export interface TranscriptEntry {
   text: string;
   timestamp: string;
   delayMs: number; // ms after start to show this entry
+  tag: StatementTag; // 発話の性質タグ
 }
+
+export type StatementTag =
+  | "agenda"      // アジェンダ提示
+  | "fact"        // 現状共有・事実報告
+  | "example"     // 例示・具体例
+  | "proposal"    // 提案
+  | "opinion"     // 意見・主張
+  | "question"    // 質問・確認
+  | "concern"     // 懸念・リスク指摘
+  | "agreement"   // 同意・賛成
+  | "decision"    // 決定・合意
+  | "action";     // アクション・タスク
 
 export interface MindMapUpdate {
   triggeredByTranscriptId: string;
@@ -17,9 +30,11 @@ export interface MindMapUpdate {
 export interface MindMapNode {
   id: string;
   label: string;
-  type: "topic" | "decision" | "action" | "question" | "insight" | "risk";
+  type: StatementTag;
   parentId?: string;
   detail?: string;
+  richType?: "comparisonTable" | "ganttChart" | "metricsCard";
+  richData?: Record<string, any>;
 }
 
 export interface MindMapEdge {
@@ -31,74 +46,136 @@ export interface MindMapEdge {
 export interface SuggestionItem {
   nodeId: string;
   text: string;
-  type: "question" | "risk" | "next-step";
+  type: "question" | "concern" | "next-step";
 }
 
-// SaaS新規プロダクトの企画会議 - かなり実務的な内容
+export const tagLabels: Record<StatementTag, { label: string; color: string; bgColor: string; borderColor: string }> = {
+  agenda:    { label: "アジェンダ",  color: "#6366f1", bgColor: "#eef2ff", borderColor: "#c7d2fe" },
+  fact:      { label: "現状共有",    color: "#0284c7", bgColor: "#e0f2fe", borderColor: "#7dd3fc" },
+  example:   { label: "例示",       color: "#0891b2", bgColor: "#ecfeff", borderColor: "#67e8f9" },
+  proposal:  { label: "提案",       color: "#7c3aed", bgColor: "#f5f3ff", borderColor: "#c4b5fd" },
+  opinion:   { label: "意見",       color: "#4f46e5", bgColor: "#eef2ff", borderColor: "#a5b4fc" },
+  question:  { label: "質問",       color: "#d97706", bgColor: "#fffbeb", borderColor: "#fcd34d" },
+  concern:   { label: "懸念",       color: "#dc2626", bgColor: "#fef2f2", borderColor: "#fca5a5" },
+  agreement: { label: "同意",       color: "#059669", bgColor: "#ecfdf5", borderColor: "#6ee7b7" },
+  decision:  { label: "決定",       color: "#059669", bgColor: "#ecfdf5", borderColor: "#6ee7b7" },
+  action:    { label: "アクション",  color: "#7c3aed", bgColor: "#f5f3ff", borderColor: "#c4b5fd" },
+};
+
+export interface Participant {
+  name: string;
+  role: string;
+  color: string;
+}
+
+export const participants: Participant[] = [
+  { name: "田中 (PM)", role: "プロダクトマネージャー", color: "#3b82f6" },
+  { name: "鈴木 (UXR)", role: "UXリサーチャー", color: "#7c3aed" },
+  { name: "山田 (Eng)", role: "テックリード", color: "#059669" },
+  { name: "佐藤 (Biz)", role: "事業開発", color: "#d97706" },
+];
+
+// SaaS新規プロダクトの企画会議
+// 問いかけ・フリを含むリアルな会話フロー
 export const transcriptData: TranscriptEntry[] = [
   {
     id: "t1",
     speaker: "田中 (PM)",
     speakerRole: "プロダクトマネージャー",
-    text: "それでは定例の新規プロダクト企画会議を始めます。今日のアジェンダは3つ。まず前回のユーザーインタビュー結果の共有、次にMVPスコープの確定、最後にQ2のロードマップについてです。",
+    text: "それでは定例の新規プロダクト企画会議を始めます。今日のアジェンダは3つ。まず前回のユーザーインタビュー結果の共有、次にMVPスコープの確定、最後にQ2のロードマップについてです。では早速、鈴木さん、インタビューの結果からお願いできますか？",
     timestamp: "10:00:05",
     delayMs: 0,
+    tag: "agenda",
   },
   {
     id: "t2",
     speaker: "鈴木 (UXR)",
     speakerRole: "UXリサーチャー",
-    text: "では先にインタビュー結果から。先週8社のエンタープライズ顧客にヒアリングしました。一番多かった課題は、社内ナレッジが属人化していて、退職者が出るとノウハウが完全にロストするということ。8社中6社がこれを最優先課題に挙げています。",
+    text: "はい、では共有します。先週8社のエンタープライズ顧客にヒアリングしました。一番多かった課題は、社内ナレッジが属人化していて、退職者が出るとノウハウが完全にロストするということ。8社中6社がこれを最優先課題に挙げています。",
     timestamp: "10:00:35",
-    delayMs: 3000,
+    delayMs: 18000,
+    tag: "fact",
   },
   {
     id: "t3",
     speaker: "鈴木 (UXR)",
     speakerRole: "UXリサーチャー",
-    text: "2番目に多かったのが、SlackやTeamsの会話に重要な意思決定が埋もれてしまう問題。特に100人以上の組織で顕著で、「3ヶ月前にあの件どう決まったっけ？」という検索が日常的に発生しているとのことです。",
+    text: "2番目に多かったのが、SlackやTeamsの会話に重要な意思決定が埋もれてしまう問題です。具体的には、特に100人以上の組織で顕著で、「3ヶ月前にあの件どう決まったっけ？」という検索が日常的に発生しているとのことでした。",
     timestamp: "10:01:10",
-    delayMs: 7000,
+    delayMs: 40000,
+    tag: "example",
+  },
+  {
+    id: "t3b",
+    speaker: "田中 (PM)",
+    speakerRole: "プロダクトマネージャー",
+    text: "ありがとうございます。なるほど、かなり根深い課題ですね。山田さん、技術的な観点からこの課題に対してどう見ていますか？",
+    timestamp: "10:01:35",
+    delayMs: 58000,
+    tag: "question",
   },
   {
     id: "t4",
     speaker: "山田 (Eng)",
     speakerRole: "テックリード",
-    text: "それは技術的には面白い課題ですね。LLMを使ったセマンティック検索と、会話のコンテキストを保持した要約生成の組み合わせで解決できそうです。既にEmbeddingの精度はかなり上がっていて、社内実験でもRAGベースのアプローチで80%以上の適合率を出せています。",
-    timestamp: "10:01:45",
-    delayMs: 12000,
+    text: "ええ、技術的には面白い課題だと思います。LLMを使ったセマンティック検索と、会話のコンテキストを保持した要約生成の組み合わせで解決できそうです。既にEmbeddingの精度はかなり上がっていて、社内実験でもRAGベースのアプローチで80%以上の適合率を出せています。",
+    timestamp: "10:01:50",
+    delayMs: 65000,
+    tag: "proposal",
+  },
+  {
+    id: "t4b",
+    speaker: "田中 (PM)",
+    speakerRole: "プロダクトマネージャー",
+    text: "80%はかなり高いですね。佐藤さん、市場側の状況はどうですか？競合の動きとか含めて。",
+    timestamp: "10:02:15",
+    delayMs: 85000,
+    tag: "question",
   },
   {
     id: "t5",
     speaker: "佐藤 (Biz)",
     speakerRole: "事業開発",
-    text: "市場的にも追い風です。Notionが先月ナレッジベースAI機能を発表しましたが、あれはあくまでドキュメント内の検索。リアルタイムの会話からナレッジを自動構造化するプレーヤーはまだいません。競合のGleanやGuruも、既存ドキュメントの横断検索が中心です。",
-    timestamp: "10:02:20",
-    delayMs: 17000,
+    text: "市場的にも追い風です。Notionが先月ナレッジベースAI機能を発表しましたが、あれはあくまでドキュメント内の検索なんですよね。リアルタイムの会話からナレッジを自動構造化するプレーヤーはまだいません。競合のGleanやGuruも、既存ドキュメントの横断検索が中心です。",
+    timestamp: "10:02:30",
+    delayMs: 92000,
+    tag: "fact",
   },
   {
     id: "t6",
     speaker: "田中 (PM)",
     speakerRole: "プロダクトマネージャー",
-    text: "なるほど、ポジショニング的には「会話→ナレッジの自動変換」がキーになりそうですね。ではMVPのスコープに入りましょう。前回の議論を踏まえて、私の方で3つの案を用意しました。",
+    text: "なるほど、ポジショニング的には「会話→ナレッジの自動変換」がキーになりそうですね。皆さんの話を踏まえると方向性は見えてきたので、MVPのスコープに入りましょう。前回の議論をベースに、私の方で3つの案を用意しました。",
     timestamp: "10:02:55",
-    delayMs: 22000,
+    delayMs: 115000,
+    tag: "opinion",
   },
   {
     id: "t7",
     speaker: "田中 (PM)",
     speakerRole: "プロダクトマネージャー",
-    text: "案A: 会議録画の自動要約と構造化のみ。案B: それに加えてSlack連携で会話のナレッジ抽出。案C: フルスコープでリアルタイム構造化＋ナレッジベース自動生成まで。開発工数はそれぞれ2ヶ月、4ヶ月、7ヶ月の見込みです。",
+    text: "案A: 会議録画の自動要約と構造化のみ。案B: それに加えてSlack連携で会話のナレッジ抽出。案C: フルスコープでリアルタイム構造化＋ナレッジベース自動生成まで。開発工数はそれぞれ2ヶ月、4ヶ月、7ヶ月の見込みです。山田さん、エンジニアリングの観点ではどう思いますか？",
     timestamp: "10:03:25",
-    delayMs: 27000,
+    delayMs: 135000,
+    tag: "proposal",
   },
   {
     id: "t8",
     speaker: "山田 (Eng)",
     speakerRole: "テックリード",
-    text: "エンジニアリング観点だと案Bが現実的です。案Aだと差別化が弱い。tl;dvやFirefliesと変わらなくなる。案Cは技術的にはやりたいですが、リアルタイム処理のレイテンシー問題が大きくて、ストリーミングASRの精度とLLM推論速度の両方がボトルネックになります。",
+    text: "そうですね、エンジニアリング観点だと案Bが現実的です。案Aだと差別化が弱い。tl;dvやFirefliesと変わらなくなる。案Cは技術的にはやりたいですが、リアルタイム処理のレイテンシー問題が大きくて、ストリーミングASRの精度とLLM推論速度の両方がボトルネックになります。",
     timestamp: "10:04:00",
-    delayMs: 33000,
+    delayMs: 160000,
+    tag: "opinion",
+  },
+  {
+    id: "t8b",
+    speaker: "田中 (PM)",
+    speakerRole: "プロダクトマネージャー",
+    text: "わかりました。佐藤さん、ビジネスサイドからはいかがですか？",
+    timestamp: "10:04:25",
+    delayMs: 180000,
+    tag: "question",
   },
   {
     id: "t9",
@@ -106,39 +183,62 @@ export const transcriptData: TranscriptEntry[] = [
     speakerRole: "事業開発",
     text: "ビジネスサイドとしても案Bに賛成です。エンタープライズ向けだとSlack連携は必須ですし、会議録画だけだと月額1,500円が上限。Slack連携まで入れれば席単価3,000〜5,000円は取れると見ています。ARR1億のラインを考えると、2,000社×月5,000円で届きます。",
     timestamp: "10:04:35",
-    delayMs: 38000,
+    delayMs: 188000,
+    tag: "agreement",
+  },
+  {
+    id: "t9b",
+    speaker: "田中 (PM)",
+    speakerRole: "プロダクトマネージャー",
+    text: "ありがとうございます。鈴木さん、ユーザー側からの視点ではどうでしょう？懸念点とかあれば。",
+    timestamp: "10:05:00",
+    delayMs: 210000,
+    tag: "question",
   },
   {
     id: "t10",
     speaker: "鈴木 (UXR)",
     speakerRole: "UXリサーチャー",
-    text: "ユーザーの声からも案Bですね。ただ1点気になるのが、Slack連携の際のプライバシー懸念。インタビューでも3社が「DMやプライベートチャンネルのデータがどう扱われるか不明だと導入できない」と明言しています。ここのUX設計は慎重にやる必要があります。",
-    timestamp: "10:05:10",
-    delayMs: 44000,
+    text: "ユーザーの声からも案Bですね。ただ1点気になるのが、Slack連携の際のプライバシー懸念です。インタビューでも3社が「DMやプライベートチャンネルのデータがどう扱われるか不明だと導入できない」と明言しています。ここのUX設計は慎重にやる必要があります。",
+    timestamp: "10:05:15",
+    delayMs: 218000,
+    tag: "concern",
   },
   {
     id: "t11",
     speaker: "田中 (PM)",
     speakerRole: "プロダクトマネージャー",
-    text: "重要なポイントですね。プライバシーについてはオプトイン方式にしましょう。チャンネルごとにナレッジ抽出のON/OFFを管理者が設定できるようにして、DMは完全に対象外とする。これでFAQにも明記できます。",
+    text: "重要なポイントですね。プライバシーについてはオプトイン方式にしましょう。チャンネルごとにナレッジ抽出のON/OFFを管理者が設定できるようにして、DMは完全に対象外とする。これでFAQにも明記できます。山田さん、技術的に対応可能ですか？",
     timestamp: "10:05:45",
-    delayMs: 50000,
+    delayMs: 245000,
+    tag: "decision",
   },
   {
     id: "t12",
     speaker: "山田 (Eng)",
     speakerRole: "テックリード",
-    text: "技術的にはSlack Events APIのスコープを最小限にすればいけます。channels:historyだけ取って、groups:readやim:readは要求しない設計にすれば、OAuth認可画面でもユーザーに安心感を与えられます。SOC2の観点からもデータ保持ポリシーを明確にしておきたい。",
+    text: "はい、問題ありません。Slack Events APIのスコープを最小限にすればいけます。channels:historyだけ取って、groups:readやim:readは要求しない設計にすれば、OAuth認可画面でもユーザーに安心感を与えられます。あと、SOC2の観点からもデータ保持ポリシーを明確にしておきたいですね。",
     timestamp: "10:06:15",
-    delayMs: 55000,
+    delayMs: 270000,
+    tag: "proposal",
+  },
+  {
+    id: "t12b",
+    speaker: "田中 (PM)",
+    speakerRole: "プロダクトマネージャー",
+    text: "いいですね。ではMVPは案Bで進めましょう。次に、Q2のロードマップに移ります。佐藤さん、スケジュール感の提案をお願いします。",
+    timestamp: "10:06:40",
+    delayMs: 295000,
+    tag: "decision",
   },
   {
     id: "t13",
     speaker: "佐藤 (Biz)",
     speakerRole: "事業開発",
-    text: "セキュリティは差別化にもなりますね。あとQ2のロードマップについてですが、4月にクローズドベータ開始で、6月末にGA（一般公開）を目標にしたい。ベータは先ほどのインタビュー企業8社のうち、前向きだった5社に声をかけます。",
-    timestamp: "10:06:50",
-    delayMs: 61000,
+    text: "はい。セキュリティは差別化にもなりますしね。Q2のロードマップとしては、4月にクローズドベータ開始で、6月末にGA（一般公開）を目標にしたいです。ベータは先ほどのインタビュー企業8社のうち、前向きだった5社に声をかけます。山田さん、このスケジュール感でエンジニアリング的にはどうですか？",
+    timestamp: "10:06:55",
+    delayMs: 305000,
+    tag: "proposal",
   },
   {
     id: "t14",
@@ -146,23 +246,62 @@ export const transcriptData: TranscriptEntry[] = [
     speakerRole: "テックリード",
     text: "4月ベータだと結構タイトですね。バックエンドの設計は2週間で固められますが、Slack連携のOAuth周りとwebhookの実装に3週間。あとLLMパイプラインの構築に3週間。フロントは並行して進められるので、3月末にはベータ版を出せるかもしれません。ただしテストが足りないリスクはあります。",
     timestamp: "10:07:25",
-    delayMs: 67000,
+    delayMs: 325000,
+    tag: "concern",
   },
   {
     id: "t15",
     speaker: "田中 (PM)",
     speakerRole: "プロダクトマネージャー",
-    text: "テスト不足は許容できないので、4月中旬ベータに1週間後ろ倒しでもいいかもしれません。品質で信頼を失うとエンタープライズは取り返しがつかない。それでは方針をまとめます。",
+    text: "テスト不足は許容できないので、4月中旬ベータに1週間後ろ倒しでもいいかもしれません。品質で信頼を失うとエンタープライズは取り返しがつかないので。それでは最後に方針をまとめます。",
     timestamp: "10:08:00",
-    delayMs: 73000,
+    delayMs: 350000,
+    tag: "decision",
   },
   {
     id: "t16",
     speaker: "田中 (PM)",
     speakerRole: "プロダクトマネージャー",
-    text: "決定事項。MVPは案B、会議要約＋Slack連携。プライバシーはオプトイン方式、DM対象外。Q2ロードマップは4月中旬ベータ、6月末GA目標。ベータ対象は5社。来週までに山田さんが技術仕様のドラフトを出して、鈴木さんがベータ企業への連絡準備をお願いします。佐藤さんは価格体系の叩きを作ってください。",
+    text: "決定事項です。MVPは案B、会議要約＋Slack連携。プライバシーはオプトイン方式、DM対象外。Q2ロードマップは4月中旬ベータ、6月末GA目標。ベータ対象は5社。アクションアイテムですが、来週までに山田さんが技術仕様のドラフト、鈴木さんがベータ企業への連絡準備、佐藤さんは価格体系の叩きをお願いします。皆さんよろしいですか？",
     timestamp: "10:08:30",
-    delayMs: 78000,
+    delayMs: 375000,
+    tag: "action",
+  },
+  {
+    id: "t17",
+    speaker: "山田 (Eng)",
+    speakerRole: "テックリード",
+    text: "了解しました。来週の金曜までに技術仕様出します。",
+    timestamp: "10:08:55",
+    delayMs: 395000,
+    tag: "agreement",
+  },
+  {
+    id: "t18",
+    speaker: "鈴木 (UXR)",
+    speakerRole: "UXリサーチャー",
+    text: "はい、ベータ候補の5社にはこちらから連絡入れますね。",
+    timestamp: "10:09:05",
+    delayMs: 402000,
+    tag: "agreement",
+  },
+  {
+    id: "t19",
+    speaker: "佐藤 (Biz)",
+    speakerRole: "事業開発",
+    text: "承知しました。価格体系は松竹梅の3プランで叩きを作ります。",
+    timestamp: "10:09:12",
+    delayMs: 408000,
+    tag: "agreement",
+  },
+  {
+    id: "t20",
+    speaker: "田中 (PM)",
+    speakerRole: "プロダクトマネージャー",
+    text: "ありがとうございます。では本日の会議はこれで終わりにしましょう。お疲れ様でした。",
+    timestamp: "10:09:20",
+    delayMs: 415000,
+    tag: "agenda",
   },
 ];
 
@@ -170,10 +309,10 @@ export const mindMapUpdates: MindMapUpdate[] = [
   {
     triggeredByTranscriptId: "t1",
     nodes: [
-      { id: "root", label: "新規プロダクト企画会議", type: "topic" },
-      { id: "agenda1", label: "ユーザーインタビュー結果", type: "topic", parentId: "root" },
-      { id: "agenda2", label: "MVPスコープ確定", type: "topic", parentId: "root" },
-      { id: "agenda3", label: "Q2ロードマップ", type: "topic", parentId: "root" },
+      { id: "root", label: "新規プロダクト企画会議", type: "agenda" },
+      { id: "agenda1", label: "ユーザーインタビュー結果", type: "agenda", parentId: "root" },
+      { id: "agenda2", label: "MVPスコープ確定", type: "agenda", parentId: "root" },
+      { id: "agenda3", label: "Q2ロードマップ", type: "agenda", parentId: "root" },
     ],
     edges: [
       { source: "root", target: "agenda1" },
@@ -184,160 +323,205 @@ export const mindMapUpdates: MindMapUpdate[] = [
   {
     triggeredByTranscriptId: "t2",
     nodes: [
-      { id: "insight1", label: "ナレッジ属人化問題", type: "insight", parentId: "agenda1", detail: "8社中6社が最優先課題" },
+      { id: "fact1", label: "ナレッジ属人化問題", type: "fact", parentId: "agenda1", detail: "8社中6社が最優先課題に挙げた" },
     ],
     edges: [
-      { source: "agenda1", target: "insight1" },
+      { source: "agenda1", target: "fact1" },
     ],
     suggestions: [
-      { nodeId: "insight1", text: "退職時のナレッジ移行フローは？", type: "question" },
+      { nodeId: "fact1", text: "退職時のナレッジ移行フローは確認した？", type: "question" },
     ],
   },
   {
     triggeredByTranscriptId: "t3",
     nodes: [
-      { id: "insight2", label: "意思決定の埋没問題", type: "insight", parentId: "agenda1", detail: "100人以上の組織で顕著" },
+      { id: "example1", label: "意思決定がチャットに埋没", type: "example", parentId: "agenda1", detail: "100人超の組織で頻発「3ヶ月前の決定を探す」" },
     ],
     edges: [
-      { source: "agenda1", target: "insight2" },
+      { source: "agenda1", target: "example1" },
     ],
     suggestions: [
-      { nodeId: "insight2", text: "検索頻度の定量データは？", type: "question" },
+      { nodeId: "example1", text: "検索にかかる時間の定量調査は？", type: "question" },
     ],
   },
   {
     triggeredByTranscriptId: "t4",
     nodes: [
-      { id: "tech1", label: "LLM + セマンティック検索", type: "insight", parentId: "insight1", detail: "RAGで適合率80%以上" },
+      { id: "proposal1", label: "LLM + RAGで解決可能", type: "proposal", parentId: "fact1", detail: "Embedding精度向上、適合率80%以上を社内実証済" },
     ],
     edges: [
-      { source: "insight1", target: "tech1" },
-      { source: "insight2", target: "tech1", label: "解決手段" },
+      { source: "fact1", target: "proposal1" },
+      { source: "example1", target: "proposal1", label: "技術的解決策" },
     ],
   },
   {
     triggeredByTranscriptId: "t5",
     nodes: [
-      { id: "market1", label: "競合分析", type: "topic", parentId: "agenda1" },
-      { id: "market2", label: "差別化: 会話→ナレッジ自動変換", type: "insight", parentId: "market1", detail: "既存競合はドキュメント検索中心" },
+      { id: "fact2", label: "競合は既存ドキュメント検索が中心", type: "fact", parentId: "agenda1", detail: "Notion AI, Glean, Guru = ドキュメント横断検索" },
+      { id: "opinion1", label: "会話→ナレッジ自動変換が空白地帯", type: "opinion", parentId: "fact2" },
     ],
     edges: [
-      { source: "agenda1", target: "market1" },
-      { source: "market1", target: "market2" },
+      { source: "agenda1", target: "fact2" },
+      { source: "fact2", target: "opinion1" },
     ],
     suggestions: [
-      { nodeId: "market2", text: "Notionの新機能との差別化をより明確に", type: "next-step" },
+      { nodeId: "opinion1", text: "Notionの新AI機能との差別化を明確に定義すべき", type: "next-step" },
     ],
   },
   {
     triggeredByTranscriptId: "t7",
     nodes: [
-      { id: "mvpA", label: "案A: 会議要約のみ", type: "question", parentId: "agenda2", detail: "開発2ヶ月" },
-      { id: "mvpB", label: "案B: 要約+Slack連携", type: "question", parentId: "agenda2", detail: "開発4ヶ月" },
-      { id: "mvpC", label: "案C: フルスコープ", type: "question", parentId: "agenda2", detail: "開発7ヶ月" },
+      {
+        id: "mvpTable", label: "MVP案 比較", type: "proposal", parentId: "agenda2",
+        richType: "comparisonTable",
+        richData: {
+          headers: ["案A", "案B", "案C"],
+          recommendIdx: 1,
+          rows: [
+            { label: "スコープ", values: ["会議要約のみ", "要約+Slack連携", "フルスコープ"] },
+            { label: "開発期間", values: ["2ヶ月", "4ヶ月", "7ヶ月"] },
+            { label: "差別化", values: ["低", "中〜高", "高"] },
+            { label: "技術リスク", values: ["低", "中", "高"] },
+          ],
+        },
+      },
+      { id: "propA", label: "案A: 会議要約のみ", type: "proposal", parentId: "mvpTable", detail: "開発2ヶ月" },
+      { id: "propB", label: "案B: 要約 + Slack連携", type: "proposal", parentId: "mvpTable", detail: "開発4ヶ月" },
+      { id: "propC", label: "案C: フルスコープ", type: "proposal", parentId: "mvpTable", detail: "開発7ヶ月" },
     ],
     edges: [
-      { source: "agenda2", target: "mvpA" },
-      { source: "agenda2", target: "mvpB" },
-      { source: "agenda2", target: "mvpC" },
+      { source: "agenda2", target: "mvpTable" },
+      { source: "mvpTable", target: "propA" },
+      { source: "mvpTable", target: "propB" },
+      { source: "mvpTable", target: "propC" },
     ],
   },
   {
     triggeredByTranscriptId: "t8",
     nodes: [
-      { id: "eval1", label: "案A: 差別化弱い", type: "risk", parentId: "mvpA" },
-      { id: "eval2", label: "案C: レイテンシーリスク", type: "risk", parentId: "mvpC" },
+      { id: "concern1", label: "案A: 差別化不足リスク", type: "concern", parentId: "propA", detail: "tl;dv, Firefliesと同質化" },
+      { id: "concern2", label: "案C: レイテンシー問題", type: "concern", parentId: "propC", detail: "ASR精度 + LLM推論速度がボトルネック" },
     ],
     edges: [
-      { source: "mvpA", target: "eval1" },
-      { source: "mvpC", target: "eval2" },
+      { source: "propA", target: "concern1" },
+      { source: "propC", target: "concern2" },
     ],
     suggestions: [
-      { nodeId: "mvpB", text: "案Bが技術的にも最適？", type: "question" },
+      { nodeId: "propB", text: "案Bの技術的実現可能性の確認は？", type: "question" },
     ],
   },
   {
     triggeredByTranscriptId: "t9",
     nodes: [
-      { id: "pricing1", label: "価格戦略", type: "topic", parentId: "mvpB", detail: "席単価 3,000〜5,000円" },
-      { id: "pricing2", label: "ARR目標: 1億円", type: "insight", parentId: "pricing1", detail: "2,000社 × 月5,000円" },
+      { id: "agree1", label: "案Bに賛成（ビジネス観点）", type: "agreement", parentId: "propB" },
+      {
+        id: "pricingKpi", label: "価格戦略・収益目標", type: "agreement", parentId: "agree1",
+        richType: "metricsCard",
+        richData: {
+          metrics: [
+            { label: "席単価", value: "3,000〜5,000円", sub: "月額", color: "#d97706" },
+            { label: "ARR目標", value: "1億円", sub: "年間経常収益", color: "#059669" },
+            { label: "必要社数", value: "2,000社", sub: "月5,000円の場合", color: "#3b82f6" },
+            { label: "案Aの場合", value: "1,500円上限", sub: "差別化不足", color: "#dc2626" },
+          ],
+        },
+      },
     ],
     edges: [
-      { source: "mvpB", target: "pricing1" },
-      { source: "pricing1", target: "pricing2" },
+      { source: "propB", target: "agree1" },
+      { source: "agree1", target: "pricingKpi" },
     ],
   },
   {
     triggeredByTranscriptId: "t10",
     nodes: [
-      { id: "risk1", label: "プライバシー懸念", type: "risk", parentId: "mvpB", detail: "3社が導入障壁と指摘" },
+      { id: "concern3", label: "プライバシー懸念", type: "concern", parentId: "propB", detail: "3社が「DM等のデータ取扱いが不明だと導入不可」" },
     ],
     edges: [
-      { source: "mvpB", target: "risk1" },
+      { source: "propB", target: "concern3" },
     ],
     suggestions: [
-      { nodeId: "risk1", text: "GDPR/個人情報保護法への対応は？", type: "risk" },
+      { nodeId: "concern3", text: "GDPR / 個人情報保護法への対応方針は？", type: "concern" },
     ],
   },
   {
     triggeredByTranscriptId: "t11",
     nodes: [
-      { id: "decision1", label: "オプトイン方式採用", type: "decision", parentId: "risk1", detail: "チャンネル単位でON/OFF、DM対象外" },
+      { id: "decision1", label: "オプトイン方式に決定", type: "decision", parentId: "concern3", detail: "チャンネル単位ON/OFF、DM完全対象外" },
     ],
     edges: [
-      { source: "risk1", target: "decision1" },
+      { source: "concern3", target: "decision1" },
     ],
   },
   {
     triggeredByTranscriptId: "t12",
     nodes: [
-      { id: "tech2", label: "Slack API最小スコープ設計", type: "action", parentId: "decision1", detail: "channels:historyのみ" },
-      { id: "tech3", label: "SOC2対応検討", type: "action", parentId: "decision1" },
+      { id: "proposal2", label: "Slack API最小スコープ設計", type: "proposal", parentId: "decision1", detail: "channels:history のみ取得" },
+      { id: "action1", label: "SOC2対応・データ保持ポリシー策定", type: "action", parentId: "decision1" },
     ],
     edges: [
-      { source: "decision1", target: "tech2" },
-      { source: "decision1", target: "tech3" },
+      { source: "decision1", target: "proposal2" },
+      { source: "decision1", target: "action1" },
     ],
   },
   {
     triggeredByTranscriptId: "t13",
     nodes: [
-      { id: "timeline1", label: "4月: クローズドベータ", type: "action", parentId: "agenda3", detail: "5社対象" },
-      { id: "timeline2", label: "6月末: GA (一般公開)", type: "action", parentId: "agenda3" },
+      { id: "proposal3", label: "4月ベータ / 6月末GA", type: "proposal", parentId: "agenda3", detail: "ベータ対象: インタビュー企業5社" },
     ],
     edges: [
-      { source: "agenda3", target: "timeline1" },
-      { source: "agenda3", target: "timeline2" },
-      { source: "timeline1", target: "timeline2", label: "段階的" },
+      { source: "agenda3", target: "proposal3" },
     ],
     suggestions: [
-      { nodeId: "timeline1", text: "ベータのKPIは何を設定する？", type: "question" },
+      { nodeId: "proposal3", text: "ベータのKPI設定が必要", type: "next-step" },
     ],
   },
   {
     triggeredByTranscriptId: "t14",
     nodes: [
-      { id: "risk2", label: "テスト不足リスク", type: "risk", parentId: "timeline1", detail: "4月頭は厳しい" },
+      {
+        id: "gantt1", label: "Q2 開発スケジュール", type: "concern", parentId: "proposal3",
+        richType: "ganttChart",
+        richData: {
+          totalWeeks: 16,
+          months: ["3月", "4月", "5月", "6月"],
+          tasks: [
+            { label: "BE設計", start: 0, duration: 2, color: "#3b82f6" },
+            { label: "Slack OAuth/WH", start: 2, duration: 3, color: "#8b5cf6" },
+            { label: "LLMパイプライン", start: 2, duration: 3, color: "#7c3aed" },
+            { label: "フロント開発", start: 1, duration: 5, color: "#0891b2" },
+            { label: "テスト/QA", start: 5, duration: 2, color: "#dc2626" },
+            { label: "ベータ運用", start: 7, duration: 5, color: "#059669" },
+            { label: "GA準備", start: 12, duration: 4, color: "#d97706" },
+          ],
+          milestones: [
+            { label: "ベータ開始", week: 7, color: "#059669" },
+            { label: "GA", week: 16, color: "#3b82f6" },
+          ],
+        },
+      },
+      { id: "concern4", label: "テスト不足リスク", type: "concern", parentId: "gantt1", detail: "テスト期間が2週間のみ" },
     ],
     edges: [
-      { source: "timeline1", target: "risk2" },
+      { source: "proposal3", target: "gantt1" },
+      { source: "gantt1", target: "concern4" },
     ],
   },
   {
     triggeredByTranscriptId: "t16",
     nodes: [
       { id: "final1", label: "MVP: 案Bに決定", type: "decision", parentId: "agenda2" },
-      { id: "action1", label: "山田: 技術仕様ドラフト", type: "action", parentId: "final1", detail: "来週まで" },
-      { id: "action2", label: "鈴木: ベータ企業連絡", type: "action", parentId: "final1", detail: "来週まで" },
-      { id: "action3", label: "佐藤: 価格体系叩き", type: "action", parentId: "final1", detail: "来週まで" },
-      { id: "final2", label: "ベータ: 4月中旬に変更", type: "decision", parentId: "agenda3" },
+      { id: "final2", label: "ベータ: 4月中旬に後倒し", type: "decision", parentId: "agenda3" },
+      { id: "task1", label: "山田: 技術仕様ドラフト", type: "action", parentId: "final1", detail: "来週まで" },
+      { id: "task2", label: "鈴木: ベータ企業への連絡", type: "action", parentId: "final1", detail: "来週まで" },
+      { id: "task3", label: "佐藤: 価格体系の叩き", type: "action", parentId: "final1", detail: "来週まで" },
     ],
     edges: [
       { source: "agenda2", target: "final1" },
-      { source: "final1", target: "action1" },
-      { source: "final1", target: "action2" },
-      { source: "final1", target: "action3" },
       { source: "agenda3", target: "final2" },
+      { source: "final1", target: "task1" },
+      { source: "final1", target: "task2" },
+      { source: "final1", target: "task3" },
     ],
   },
 ];
