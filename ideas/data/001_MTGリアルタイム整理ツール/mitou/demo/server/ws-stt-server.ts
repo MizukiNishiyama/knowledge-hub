@@ -16,10 +16,10 @@ const WHISPER_URL = process.env.WHISPER_URL || "http://localhost:8178/inference"
 const SAMPLE_RATE = 16000;
 
 // VAD parameters
-const SILENCE_THRESHOLD = 500;      // Int16 RMS below this = silence
-const SILENCE_DURATION_MS = 800;    // Silence this long = end of speech
-const MAX_SPEECH_MS = 8000;         // Force split at this length
-const MIN_SPEECH_MS = 500;          // Ignore speech shorter than this
+const SILENCE_THRESHOLD = 400;      // Int16 RMS below this = silence (lowered to avoid false splits)
+const SILENCE_DURATION_MS = 1800;   // Silence this long = end of speech (1.8s — tolerates pauses/breathing)
+const MAX_SPEECH_MS = 25000;        // Force split at this length (25s — allows long continuous speech)
+const MIN_SPEECH_MS = 800;          // Ignore speech shorter than this (0.8s — filters out noise/clicks)
 
 // --- WAV Header Construction ---
 function buildWavHeader(dataLength: number): Buffer {

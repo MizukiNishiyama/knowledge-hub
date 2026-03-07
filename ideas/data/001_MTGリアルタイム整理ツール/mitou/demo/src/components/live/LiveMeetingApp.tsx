@@ -10,6 +10,8 @@ import {
   LiveTranscriptSegment,
   StructureUpdate,
   StructuredNode,
+  StructuredEdge,
+  StatementTag,
 } from "@/lib/types";
 import {
   TranscriptEntry,
@@ -18,6 +20,24 @@ import {
   MindMapEdge as DemoMindMapEdge,
   SuggestionItem,
 } from "@/data/transcript";
+
+// ─── Client-side instant tag detection (no LLM needed) ───
+function detectTag(text: string): StatementTag {
+  if (/決定|決めましょう|に決まり|合意/.test(text)) return "decision";
+  if (/タスク|アクション|担当|期限|までに|やります|対応します/.test(text)) return "action";
+  if (/[？?]|どう思|いかが|どうですか|確認/.test(text)) return "question";
+  if (/提案|案として|してはどう|しましょう|導入|案[A-C]/.test(text)) return "proposal";
+  if (/懸念|リスク|心配|問題|課題|注意/.test(text)) return "concern";
+  if (/賛成|同意|いいと思|それで|了解|承知/.test(text)) return "agreement";
+  if (/例えば|具体的|たとえば|ケース/.test(text)) return "example";
+  if (/思います|考えます|意見|感じ/.test(text)) return "opinion";
+  if (/アジェンダ|議題|始めます|移ります/.test(text)) return "agenda";
+  return "fact";
+}
+
+function truncateLabel(text: string, maxLen = 18): string {
+  return text.length > maxLen ? text.slice(0, maxLen) + "…" : text;
+}
 
 interface HealthStatus {
   ready: boolean;
@@ -134,25 +154,64 @@ export default function LiveMeetingApp() {
   // Handle transcript from WebSocket STT
   const handleTranscript = useCallback(
     (text: string, id: string, isFinal: boolean) => {
-      if (!isFinal) return; // For now, only process final results
+      if (!isFinal) return;
 
       const trimmed = text.trim();
       if (!trimmed) return;
 
       const segId = id || `seg_${++segmentCounter.current}`;
+      segmentCounter.current++;
+      const now = Date.now();
+
       const newSegment: LiveTranscriptSegment = {
         id: segId,
         text: trimmed,
-        timestamp: Date.now(),
+        timestamp: now,
         isFinal: true,
       };
       setSegments((prev) => [...prev, newSegment]);
-      segmentCounter.current++;
 
-      // Buffer text for structure request
+      // ── Instant client-side structure (no LLM wait) ──
+      const tag = detectTag(trimmed);
+      const isFirst = segmentCounter.current <= 1;
+
+      const immediateNodes: StructuredNode[] = [];
+      const immediateEdges: StructuredEdge[] = [];
+
+      // Create root node on first segment
+      if (isFirst) {
+        immediateNodes.push({
+          id: "live_root",
+          label: "会議",
+          type: "agenda",
+          summary: new Date().toLocaleTimeString("ja-JP") + " 開始",
+          tags: ["ライブ"],
+        });
+      }
+
+      // Create a node for this segment
+      immediateNodes.push({
+        id: `instant_${segId}`,
+        label: truncateLabel(trimmed),
+        type: tag,
+        parentId: "live_root",
+        summary: trimmed.length > 60 ? trimmed.slice(0, 60) + "…" : trimmed,
+        tags: [tag],
+      });
+
+      immediateEdges.push({
+        source: "live_root",
+        target: `instant_${segId}`,
+      });
+
+      // Add instant update (shows on map immediately)
+      setStructureUpdates((prev) => [
+        ...prev,
+        { nodes: immediateNodes, edges: immediateEdges },
+      ]);
+
+      // ── Also buffer for LLM enrichment (adds richer relationships async) ──
       unstructuredBufferRef.current.push(trimmed);
-
-      // Trigger structuring on every segment (requestStructure handles dedup via pendingStructure)
       requestStructureRef.current();
     },
     [] // no deps — uses refs for latest values
