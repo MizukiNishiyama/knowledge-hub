@@ -9,9 +9,6 @@ import MeetingSummary from "../MeetingSummary";
 import {
   LiveTranscriptSegment,
   StructureUpdate,
-  StructuredNode,
-  StructuredEdge,
-  StatementTag,
 } from "@/lib/types";
 import {
   TranscriptEntry,
@@ -20,24 +17,6 @@ import {
   MindMapEdge as DemoMindMapEdge,
   SuggestionItem,
 } from "@/data/transcript";
-
-// ─── Client-side instant tag detection (no LLM needed) ───
-function detectTag(text: string): StatementTag {
-  if (/決定|決めましょう|に決まり|合意/.test(text)) return "decision";
-  if (/タスク|アクション|担当|期限|までに|やります|対応します/.test(text)) return "action";
-  if (/[？?]|どう思|いかが|どうですか|確認/.test(text)) return "question";
-  if (/提案|案として|してはどう|しましょう|導入|案[A-C]/.test(text)) return "proposal";
-  if (/懸念|リスク|心配|問題|課題|注意/.test(text)) return "concern";
-  if (/賛成|同意|いいと思|それで|了解|承知/.test(text)) return "agreement";
-  if (/例えば|具体的|たとえば|ケース/.test(text)) return "example";
-  if (/思います|考えます|意見|感じ/.test(text)) return "opinion";
-  if (/アジェンダ|議題|始めます|移ります/.test(text)) return "agenda";
-  return "fact";
-}
-
-function truncateLabel(text: string, maxLen = 18): string {
-  return text.length > maxLen ? text.slice(0, maxLen) + "…" : text;
-}
 
 interface HealthStatus {
   ready: boolean;
@@ -56,9 +35,20 @@ export default function LiveMeetingApp() {
   const [elapsedSec, setElapsedSec] = useState(0);
   const segmentCounter = useRef(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const pendingStructure = useRef(false);
-  const unstructuredBufferRef = useRef<string[]>([]);
-  const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ─── LLM Structure Queue ───
+  // FIFO queue of text chunks. Processed sequentially (Ollama is single-threaded).
+  // When the processor finishes, it drains whatever accumulated in the queue
+  // and sends it as a single batch — so no text is ever dropped.
+  const queueRef = useRef<string[]>([]);
+  const processingRef = useRef(false);
+
+  // Refs for values needed inside the queue processor (avoids stale closures)
+  const segmentsRef = useRef(segments);
+  useEffect(() => { segmentsRef.current = segments; }, [segments]);
+
+  const structureUpdatesRef = useRef(structureUpdates);
+  useEffect(() => { structureUpdatesRef.current = structureUpdates; }, [structureUpdates]);
 
   // Check backend health on mount
   useEffect(() => {
@@ -83,159 +73,88 @@ export default function LiveMeetingApp() {
     }
   }, [meetingStarted]);
 
-  // Collect all existing node IDs (memoized to avoid recreating requestStructure every render)
-  const allNodeIds = useMemo(
-    () => structureUpdates.flatMap((u) => u.nodes.map((n) => n.id)),
-    [structureUpdates]
-  );
+  // ─── Queue processor: drain queue → send to LLM → add result → loop ───
+  const processQueue = useCallback(async () => {
+    if (processingRef.current || queueRef.current.length === 0) return;
+    processingRef.current = true;
+    setIsProcessing(true);
 
-  // Build context from past segments
-  const buildContext = useCallback(() => {
-    return segments
+    // Drain entire queue into one batch
+    const batchText = queueRef.current.join("\n");
+    queueRef.current = [];
+
+    // Build context & existing IDs from latest refs
+    const context = segmentsRef.current
       .filter((s) => s.isFinal)
       .map((s) => `${s.speaker || "Unknown"}: ${s.text}`)
       .join("\n");
-  }, [segments]);
+    const existingIds = structureUpdatesRef.current
+      .flatMap((u) => u.nodes.map((n) => n.id));
 
-  // Send buffered text to LLM for structuring.
-  // Reads from unstructuredBufferRef so no text is lost between calls.
-  const requestStructure = useCallback(
-    async () => {
-      if (pendingStructure.current) return;
-
-      const bufferedText = unstructuredBufferRef.current.join("\n");
-      if (!bufferedText.trim()) return;
-
-      // Drain buffer before sending
-      unstructuredBufferRef.current = [];
-      pendingStructure.current = true;
-      setIsProcessing(true);
-
-      try {
-        const res = await fetch("/api/structure", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            newText: bufferedText,
-            previousContext: buildContext(),
-            existingNodeIds: allNodeIds,
-          }),
-        });
-        if (res.ok) {
-          const update: StructureUpdate = await res.json();
-          if (update.nodes && update.nodes.length > 0) {
-            setStructureUpdates((prev) => [...prev, update]);
-          }
-        } else {
-          console.error("[Structure] API error:", res.status, await res.text().catch(() => ""));
+    try {
+      const res = await fetch("/api/structure", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          newText: batchText,
+          previousContext: context,
+          existingNodeIds: existingIds,
+        }),
+      });
+      if (res.ok) {
+        const update: StructureUpdate = await res.json();
+        if (update.nodes && update.nodes.length > 0) {
+          setStructureUpdates((prev) => [...prev, update]);
         }
-      } catch (err) {
-        console.error("[Structure] Request failed:", err);
-      } finally {
-        pendingStructure.current = false;
-        setIsProcessing(false);
-
-        // Retry if more text accumulated while we were processing
-        if (unstructuredBufferRef.current.length > 0) {
-          if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-          retryTimerRef.current = setTimeout(() => requestStructureRef.current(), 200);
-        }
+      } else {
+        console.error("[Structure] API error:", res.status, await res.text().catch(() => ""));
       }
-    },
-    [buildContext, allNodeIds]
-  );
+    } catch (err) {
+      console.error("[Structure] Request failed:", err);
+    } finally {
+      processingRef.current = false;
+      setIsProcessing(false);
 
-  // Keep a stable ref so the retry setTimeout always calls the latest version
-  const requestStructureRef = useRef(requestStructure);
-  useEffect(() => {
-    requestStructureRef.current = requestStructure;
-  }, [requestStructure]);
+      // If more text accumulated while we were processing, process it immediately
+      if (queueRef.current.length > 0) {
+        processQueue();
+      }
+    }
+  }, []);
 
-  // Handle transcript from WebSocket STT (both interim and final)
+  // Stable ref so callbacks can always call the latest processQueue
+  const processQueueRef = useRef(processQueue);
+  useEffect(() => { processQueueRef.current = processQueue; }, [processQueue]);
+
+  // ─── Enqueue text for LLM structuring ───
+  const enqueueForStructure = useCallback((text: string) => {
+    queueRef.current.push(text);
+    // Kick the processor (no-op if already running)
+    processQueueRef.current();
+  }, []);
+
+  // ─── Handle transcript from WebSocket STT ───
   const handleTranscript = useCallback(
     (text: string, id: string, isFinal: boolean) => {
+      if (!isFinal) return;
+
       const trimmed = text.trim();
       if (!trimmed) return;
 
-      const now = Date.now();
-
-      if (!isFinal) {
-        // ── Interim: show/update a live "typing" segment at the bottom ──
-        setSegments((prev) => {
-          const interimIdx = prev.findIndex((s) => !s.isFinal);
-          if (interimIdx >= 0) {
-            // Update existing interim segment in place
-            const updated = [...prev];
-            updated[interimIdx] = { ...updated[interimIdx], text: trimmed, timestamp: now };
-            return updated;
-          }
-          // Create new interim segment
-          return [...prev, {
-            id: "interim_live",
-            text: trimmed,
-            timestamp: now,
-            isFinal: false,
-          }];
-        });
-        return;
-      }
-
-      // ── Final: replace interim with finalized segment ──
       const segId = id || `seg_${++segmentCounter.current}`;
       segmentCounter.current++;
 
-      setSegments((prev) => {
-        // Remove any interim segment and append final
-        const withoutInterim = prev.filter((s) => s.isFinal);
-        return [...withoutInterim, {
-          id: segId,
-          text: trimmed,
-          timestamp: now,
-          isFinal: true,
-        }];
-      });
+      setSegments((prev) => [...prev, {
+        id: segId,
+        text: trimmed,
+        timestamp: Date.now(),
+        isFinal: true,
+      }]);
 
-      // ── Instant client-side structure (no LLM wait) ──
-      const tag = detectTag(trimmed);
-      const isFirst = segmentCounter.current <= 1;
-
-      const immediateNodes: StructuredNode[] = [];
-      const immediateEdges: StructuredEdge[] = [];
-
-      if (isFirst) {
-        immediateNodes.push({
-          id: "live_root",
-          label: "会議",
-          type: "agenda",
-          summary: new Date().toLocaleTimeString("ja-JP") + " 開始",
-          tags: ["ライブ"],
-        });
-      }
-
-      immediateNodes.push({
-        id: `instant_${segId}`,
-        label: truncateLabel(trimmed),
-        type: tag,
-        parentId: "live_root",
-        summary: trimmed.length > 60 ? trimmed.slice(0, 60) + "…" : trimmed,
-        tags: [tag],
-      });
-
-      immediateEdges.push({
-        source: "live_root",
-        target: `instant_${segId}`,
-      });
-
-      setStructureUpdates((prev) => [
-        ...prev,
-        { nodes: immediateNodes, edges: immediateEdges },
-      ]);
-
-      // ── Also buffer for LLM enrichment ──
-      unstructuredBufferRef.current.push(trimmed);
-      requestStructureRef.current();
+      // Every final segment goes straight to LLM for structuring
+      enqueueForStructure(trimmed);
     },
-    [] // no deps — uses refs for latest values
+    [enqueueForStructure]
   );
 
   const { isCapturing, isConnected, error: micError, start: startMic, stop: stopMic } =
@@ -251,7 +170,6 @@ export default function LiveMeetingApp() {
 
   const handleStop = () => {
     stopMic();
-    // Show summary after a brief delay
     setTimeout(() => setShowSummary(true), 1000);
   };
 
@@ -263,10 +181,9 @@ export default function LiveMeetingApp() {
     setShowSummary(false);
     setElapsedSec(0);
     segmentCounter.current = 0;
-    unstructuredBufferRef.current = [];
-    pendingStructure.current = false;
+    queueRef.current = [];
+    processingRef.current = false;
     if (timerRef.current) clearInterval(timerRef.current);
-    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
   };
 
   const formatTime = (sec: number) => {
@@ -275,7 +192,7 @@ export default function LiveMeetingApp() {
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  // Convert StructureUpdates → MindMapUpdate[] for reusing existing MindMapPanel
+  // ─── Convert StructureUpdates → MindMapUpdate[] for MindMapPanel ───
   const mindMapUpdates: MindMapUpdate[] = structureUpdates.map((su, idx) => ({
     triggeredByTranscriptId: `live_${idx}`,
     nodes: su.nodes.map((n) => ({
@@ -302,7 +219,7 @@ export default function LiveMeetingApp() {
   // Convert segments → TranscriptEntry[] for MeetingSummary
   const transcriptEntries: TranscriptEntry[] = segments
     .filter((s) => s.isFinal)
-    .map((s, i) => ({
+    .map((s) => ({
       id: s.id,
       speaker: s.speaker || "参加者",
       speakerRole: "",
@@ -311,6 +228,9 @@ export default function LiveMeetingApp() {
       delayMs: 0,
       tag: "fact" as const,
     }));
+
+  // Count queued items for UI feedback
+  const queuedCount = queueRef.current.length;
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-white">
@@ -350,7 +270,7 @@ export default function LiveMeetingApp() {
               </span>
               {isProcessing && (
                 <span className="text-[10px] text-indigo-500 animate-pulse">
-                  AI処理中...
+                  LLM構造化中...
                 </span>
               )}
             </div>
@@ -490,10 +410,31 @@ export default function LiveMeetingApp() {
           initial={{ x: 30, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.15 }}
-          className="flex-1 bg-gray-50"
+          className="flex-1 bg-gray-50 relative"
         >
           {mindMapUpdates.length > 0 ? (
-            <LiveMindMapPanel updates={mindMapUpdates} />
+            <>
+              <LiveMindMapPanel updates={mindMapUpdates} />
+              {/* Processing overlay indicator */}
+              {isProcessing && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/90 border border-indigo-200 shadow-sm backdrop-blur-sm"
+                  >
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full"
+                    />
+                    <span className="text-[10px] text-indigo-600 font-medium">
+                      LLM構造化中...
+                    </span>
+                  </motion.div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="h-full flex items-center justify-center">
               <div className="text-center max-w-sm">
@@ -518,6 +459,21 @@ export default function LiveMeetingApp() {
                       <span>Structure Map</span>
                     </div>
                   </>
+                ) : isProcessing ? (
+                  <>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                      className="w-8 h-8 mx-auto mb-4 border-3 border-indigo-300 border-t-indigo-600 rounded-full"
+                      style={{ borderWidth: 3 }}
+                    />
+                    <p className="text-sm text-indigo-400 font-medium">
+                      LLMが議論を構造化しています...
+                    </p>
+                    <p className="text-[11px] text-gray-300 mt-1">
+                      最初のノードがまもなく表示されます
+                    </p>
+                  </>
                 ) : (
                   <>
                     <motion.div
@@ -528,7 +484,7 @@ export default function LiveMeetingApp() {
                       🧠
                     </motion.div>
                     <p className="text-sm text-gray-300">
-                      音声を認識中...構造マップがまもなく生成されます
+                      音声を待機中...発話を検出するとAI構造化が始まります
                     </p>
                   </>
                 )}
