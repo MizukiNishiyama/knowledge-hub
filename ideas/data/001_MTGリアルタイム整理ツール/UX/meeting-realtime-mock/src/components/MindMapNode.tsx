@@ -3,13 +3,26 @@
 import { memo } from "react";
 import { Handle, Position, NodeProps } from "reactflow";
 import { motion, AnimatePresence } from "framer-motion";
-import { tagLabels, StatementTag } from "@/data/transcript";
+import { tagLabels, StatementTag, NodePriority, NodeStatus } from "@/data/transcript";
 
 const speakerColors: Record<string, string> = {
   "田中 (PM)": "#3b82f6",
   "鈴木 (UXR)": "#7c3aed",
   "山田 (Eng)": "#059669",
   "佐藤 (Biz)": "#d97706",
+};
+
+const priorityConfig: Record<NodePriority, { label: string; color: string; bg: string }> = {
+  high: { label: "HIGH", color: "#dc2626", bg: "#fef2f2" },
+  medium: { label: "MED", color: "#d97706", bg: "#fffbeb" },
+  low: { label: "LOW", color: "#6b7280", bg: "#f9fafb" },
+};
+
+const statusConfig: Record<NodeStatus, { label: string; color: string; bg: string; icon: string }> = {
+  open: { label: "未対応", color: "#6b7280", bg: "#f3f4f6", icon: "○" },
+  "in-progress": { label: "進行中", color: "#2563eb", bg: "#eff6ff", icon: "◐" },
+  resolved: { label: "解決済", color: "#059669", bg: "#ecfdf5", icon: "●" },
+  blocked: { label: "ブロック", color: "#dc2626", bg: "#fef2f2", icon: "✕" },
 };
 
 function CustomNode({ data }: NodeProps) {
@@ -19,10 +32,14 @@ function CustomNode({ data }: NodeProps) {
   const speaker: string | undefined = data.speaker;
   const summary: string | undefined = data.summary;
   const evidence: string | undefined = data.evidence;
+  const priority: NodePriority | undefined = data.priority;
+  const status: NodeStatus | undefined = data.status;
+  const tags: string[] = data.tags || [];
   const suggestions: { text: string; type: string }[] = data.suggestions || [];
 
   const speakerColor = speaker ? speakerColors[speaker] || "#6b7280" : undefined;
-  const hasRichContent = speaker || summary || evidence;
+  const pConfig = priority ? priorityConfig[priority] : undefined;
+  const sConfig = status ? statusConfig[status] : undefined;
 
   return (
     <motion.div
@@ -41,21 +58,40 @@ function CustomNode({ data }: NodeProps) {
           boxShadow: isNew
             ? `0 3px 16px ${config.borderColor}80`
             : "0 1px 6px rgba(0,0,0,0.06)",
-          width: hasRichContent ? 260 : 200,
+          width: 300,
         }}
       >
         {/* Top color bar */}
         <div className="h-[3px]" style={{ background: config.color }} />
 
         <div className="px-3.5 py-2.5">
-          {/* Tag + Speaker row */}
-          <div className="flex items-center justify-between mb-1.5">
+          {/* Row 1: Tag + Priority + Status */}
+          <div className="flex items-center gap-1.5 mb-1.5">
             <span
               className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider"
               style={{ color: config.color, background: config.bgColor }}
             >
               {config.label}
             </span>
+            {pConfig && (
+              <span
+                className="inline-flex items-center px-1 py-0.5 rounded text-[8px] font-bold tracking-wider"
+                style={{ color: pConfig.color, background: pConfig.bg }}
+              >
+                {pConfig.label}
+              </span>
+            )}
+            {sConfig && (
+              <span
+                className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-medium"
+                style={{ color: sConfig.color, background: sConfig.bg }}
+              >
+                <span className="text-[7px]">{sConfig.icon}</span>
+                {sConfig.label}
+              </span>
+            )}
+            {/* Spacer to push speaker right */}
+            <span className="flex-1" />
             {speaker && (
               <span
                 className="flex items-center gap-1 text-[9px] font-medium"
@@ -99,6 +135,20 @@ function CustomNode({ data }: NodeProps) {
               {data.detail}
             </div>
           )}
+
+          {/* Tags row */}
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {tags.map((t: string, i: number) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] font-medium text-gray-500 bg-gray-100 border border-gray-200"
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* New indicator */}
@@ -120,7 +170,7 @@ function CustomNode({ data }: NodeProps) {
         {suggestions.map((s: { text: string; type: string }, i: number) => {
           const angle = -20 + i * 25;
           const rad = (angle * Math.PI) / 180;
-          const distance = 150;
+          const distance = 170;
           const x = Math.cos(rad) * distance;
           const y = Math.sin(rad) * distance;
 
@@ -138,7 +188,7 @@ function CustomNode({ data }: NodeProps) {
               style={{ zIndex: 10 }}
             >
               <div
-                className="rounded-md px-2 py-1 text-[9px] max-w-[170px] whitespace-nowrap border"
+                className="rounded-md px-2 py-1 text-[9px] max-w-[180px] whitespace-nowrap border"
                 style={{
                   background: isRisk ? "#fef2f2" : isNext ? "#f5f3ff" : "#fffbeb",
                   borderColor: isRisk ? "#fca5a5" : isNext ? "#c4b5fd" : "#fcd34d",

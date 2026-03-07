@@ -27,15 +27,21 @@ export interface MindMapUpdate {
   suggestions?: SuggestionItem[];
 }
 
+export type NodePriority = "high" | "medium" | "low";
+export type NodeStatus = "open" | "in-progress" | "resolved" | "blocked";
+
 export interface MindMapNode {
   id: string;
   label: string;
   type: StatementTag;
   parentId?: string;
   detail?: string;
-  speaker?: string;      // 発言者名
-  summary?: string;      // 主張・論点の要約
-  evidence?: string;     // 根拠・データ
+  speaker?: string;        // 発言者名
+  summary?: string;        // 主張・論点の要約
+  evidence?: string;       // 根拠・データ
+  priority?: NodePriority; // 重要度
+  status?: NodeStatus;     // ステータス
+  tags?: string[];         // 補助タグ（例: "MVP", "セキュリティ"）
   richType?: "comparisonTable" | "ganttChart" | "metricsCard";
   richData?: Record<string, any>;
 }
@@ -312,10 +318,10 @@ export const mindMapUpdates: MindMapUpdate[] = [
   {
     triggeredByTranscriptId: "t1",
     nodes: [
-      { id: "root", label: "新規プロダクト企画会議", type: "agenda", speaker: "田中 (PM)", summary: "3つのアジェンダを設定して会議を開始" },
-      { id: "agenda1", label: "ユーザーインタビュー結果", type: "agenda", parentId: "root" },
-      { id: "agenda2", label: "MVPスコープ確定", type: "agenda", parentId: "root" },
-      { id: "agenda3", label: "Q2ロードマップ", type: "agenda", parentId: "root" },
+      { id: "root", label: "新規プロダクト企画会議", type: "agenda", speaker: "田中 (PM)", summary: "3つのアジェンダを設定して会議を開始", detail: "10:00開始 / 参加者4名", priority: "high", tags: ["定例", "企画"] },
+      { id: "agenda1", label: "ユーザーインタビュー結果", type: "agenda", parentId: "root", speaker: "鈴木 (UXR)", summary: "エンタープライズ8社への定性調査の結果を共有", detail: "先週実施 / 各社30分ずつヒアリング", tags: ["UXリサーチ"] },
+      { id: "agenda2", label: "MVPスコープ確定", type: "agenda", parentId: "root", speaker: "田中 (PM)", summary: "3案から最適なMVPスコープを全員で議論・決定する", detail: "A/B/C案を比較検討", priority: "high", tags: ["MVP", "意思決定"] },
+      { id: "agenda3", label: "Q2ロードマップ", type: "agenda", parentId: "root", speaker: "佐藤 (Biz)", summary: "4月〜6月の開発・ビジネス展開スケジュールを策定", detail: "ベータ開始〜GA目標を含む", tags: ["スケジュール"] },
     ],
     edges: [
       { source: "root", target: "agenda1" },
@@ -326,7 +332,7 @@ export const mindMapUpdates: MindMapUpdate[] = [
   {
     triggeredByTranscriptId: "t2",
     nodes: [
-      { id: "fact1", label: "ナレッジ属人化問題", type: "fact", parentId: "agenda1", speaker: "鈴木 (UXR)", summary: "退職者が出るとノウハウが完全にロストする", evidence: "8社中6社が最優先課題として挙げた", detail: "エンタープライズ8社へのヒアリング結果" },
+      { id: "fact1", label: "ナレッジ属人化問題", type: "fact", parentId: "agenda1", speaker: "鈴木 (UXR)", summary: "退職者が出るとノウハウが完全にロストする", evidence: "8社中6社が最優先課題として挙げた", detail: "エンタープライズ8社へのヒアリング結果", priority: "high", tags: ["課題", "ペインポイント"] },
     ],
     edges: [
       { source: "agenda1", target: "fact1" },
@@ -338,7 +344,7 @@ export const mindMapUpdates: MindMapUpdate[] = [
   {
     triggeredByTranscriptId: "t3",
     nodes: [
-      { id: "example1", label: "意思決定がチャットに埋没", type: "example", parentId: "agenda1", speaker: "鈴木 (UXR)", summary: "過去の意思決定を検索するのが日常業務になっている", evidence: "100人超の組織で顕著に発生", detail: "「3ヶ月前にあの件どう決まったっけ？」が頻発" },
+      { id: "example1", label: "意思決定がチャットに埋没", type: "example", parentId: "agenda1", speaker: "鈴木 (UXR)", summary: "過去の意思決定を検索するのが日常業務になっている", evidence: "100人超の組織で顕著に発生", detail: "「3ヶ月前にあの件どう決まったっけ？」が頻発", tags: ["Slack", "Teams", "検索"] },
     ],
     edges: [
       { source: "agenda1", target: "example1" },
@@ -350,7 +356,7 @@ export const mindMapUpdates: MindMapUpdate[] = [
   {
     triggeredByTranscriptId: "t4",
     nodes: [
-      { id: "proposal1", label: "LLM + RAGで解決可能", type: "proposal", parentId: "fact1", speaker: "山田 (Eng)", summary: "セマンティック検索とコンテキスト保持型要約の組合せで解決", evidence: "社内実験でRAGベースの適合率80%以上を達成", detail: "Embedding精度が実用レベルに到達" },
+      { id: "proposal1", label: "LLM + RAGで解決可能", type: "proposal", parentId: "fact1", speaker: "山田 (Eng)", summary: "セマンティック検索とコンテキスト保持型要約の組合せで解決", evidence: "社内実験でRAGベースの適合率80%以上を達成", detail: "Embedding精度が実用レベルに到達", priority: "high", tags: ["技術", "LLM", "RAG"] },
     ],
     edges: [
       { source: "fact1", target: "proposal1" },
@@ -360,8 +366,8 @@ export const mindMapUpdates: MindMapUpdate[] = [
   {
     triggeredByTranscriptId: "t5",
     nodes: [
-      { id: "fact2", label: "競合は既存ドキュメント検索が中心", type: "fact", parentId: "agenda1", speaker: "佐藤 (Biz)", summary: "リアルタイム会話からの自動構造化プレーヤーは不在", evidence: "Notion AI, Glean, Guru いずれもドキュメント横断検索" },
-      { id: "opinion1", label: "「会話→ナレッジ自動変換」が空白地帯", type: "opinion", parentId: "fact2", speaker: "佐藤 (Biz)", summary: "市場的に追い風。この領域に参入できるポジションがある" },
+      { id: "fact2", label: "競合は既存ドキュメント検索が中心", type: "fact", parentId: "agenda1", speaker: "佐藤 (Biz)", summary: "リアルタイム会話からの自動構造化プレーヤーは不在", evidence: "Notion AI, Glean, Guru いずれもドキュメント横断検索", tags: ["競合分析", "市場"] },
+      { id: "opinion1", label: "「会話→ナレッジ自動変換」が空白地帯", type: "opinion", parentId: "fact2", speaker: "佐藤 (Biz)", summary: "市場的に追い風。この領域に参入できるポジションがある", priority: "high", tags: ["ポジショニング", "差別化"] },
     ],
     edges: [
       { source: "agenda1", target: "fact2" },
@@ -388,9 +394,9 @@ export const mindMapUpdates: MindMapUpdate[] = [
           ],
         },
       },
-      { id: "propA", label: "案A: 会議要約のみ", type: "proposal", parentId: "mvpTable", detail: "開発2ヶ月" },
-      { id: "propB", label: "案B: 要約 + Slack連携", type: "proposal", parentId: "mvpTable", detail: "開発4ヶ月" },
-      { id: "propC", label: "案C: フルスコープ", type: "proposal", parentId: "mvpTable", detail: "開発7ヶ月" },
+      { id: "propA", label: "案A: 会議要約のみ", type: "proposal", parentId: "mvpTable", speaker: "田中 (PM)", summary: "会議録画の自動要約と構造化に特化したミニマル版", evidence: "開発工数: 2ヶ月 / 差別化: 低", detail: "tl;dv, Firefliesと機能が類似するリスク", priority: "low", tags: ["MVP候補", "最小構成"] },
+      { id: "propB", label: "案B: 要約 + Slack連携", type: "proposal", parentId: "mvpTable", speaker: "田中 (PM)", summary: "会議要約に加えSlackの会話からもナレッジを抽出", evidence: "開発工数: 4ヶ月 / 差別化: 中〜高", detail: "Slack連携で席単価を3,000〜5,000円に引き上げ可能", priority: "high", status: "resolved", tags: ["MVP候補", "推奨", "Slack"] },
+      { id: "propC", label: "案C: フルスコープ開発", type: "proposal", parentId: "mvpTable", speaker: "田中 (PM)", summary: "リアルタイム構造化＋ナレッジベース自動生成まで網羅", evidence: "開発工数: 7ヶ月 / 差別化: 高 / リスク: 高", detail: "ストリーミングASR + LLM推論のレイテンシーが課題", priority: "medium", tags: ["MVP候補", "将来構想"] },
     ],
     edges: [
       { source: "agenda2", target: "mvpTable" },
@@ -402,8 +408,8 @@ export const mindMapUpdates: MindMapUpdate[] = [
   {
     triggeredByTranscriptId: "t8",
     nodes: [
-      { id: "concern1", label: "案A: 差別化不足リスク", type: "concern", parentId: "propA", speaker: "山田 (Eng)", summary: "tl;dvやFirefliesと同質化し、価格競争に陥る", detail: "既存プレーヤーと機能が被る" },
-      { id: "concern2", label: "案C: レイテンシー問題", type: "concern", parentId: "propC", speaker: "山田 (Eng)", summary: "リアルタイム処理はASR精度とLLM推論速度がボトルネック", detail: "技術的にはやりたいが現時点では困難" },
+      { id: "concern1", label: "案A: 差別化不足リスク", type: "concern", parentId: "propA", speaker: "山田 (Eng)", summary: "tl;dvやFirefliesと同質化し、価格競争に陥る", evidence: "既存3社以上が同機能を提供済み", detail: "席単価1,500円以下に抑えられる恐れ", priority: "high", status: "resolved", tags: ["リスク", "競合"] },
+      { id: "concern2", label: "案C: レイテンシー問題", type: "concern", parentId: "propC", speaker: "山田 (Eng)", summary: "リアルタイム処理はASR精度とLLM推論速度がボトルネック", evidence: "現状のストリーミングASRでは1-3秒のラグが発生", detail: "技術的にはやりたいが現時点では困難", priority: "medium", status: "open", tags: ["リスク", "技術課題"] },
     ],
     edges: [
       { source: "propA", target: "concern1" },
@@ -416,7 +422,7 @@ export const mindMapUpdates: MindMapUpdate[] = [
   {
     triggeredByTranscriptId: "t9",
     nodes: [
-      { id: "agree1", label: "案Bに賛成（ビジネス観点）", type: "agreement", parentId: "propB", speaker: "佐藤 (Biz)", summary: "Slack連携で席単価を大幅に引き上げられる", evidence: "会議録画のみ=1,500円上限、Slack連携込み=3,000〜5,000円" },
+      { id: "agree1", label: "案Bに賛成（ビジネス観点）", type: "agreement", parentId: "propB", speaker: "佐藤 (Biz)", summary: "Slack連携で席単価を大幅に引き上げられる", evidence: "会議録画のみ=1,500円上限、Slack連携込み=3,000〜5,000円", priority: "high", tags: ["ビジネス", "価格戦略"] },
       {
         id: "pricingKpi", label: "価格戦略・収益目標", type: "agreement", parentId: "agree1",
         richType: "metricsCard",
@@ -438,7 +444,7 @@ export const mindMapUpdates: MindMapUpdate[] = [
   {
     triggeredByTranscriptId: "t10",
     nodes: [
-      { id: "concern3", label: "プライバシー懸念", type: "concern", parentId: "propB", speaker: "鈴木 (UXR)", summary: "Slack連携時のDM・プライベートチャンネルの扱いが導入障壁", evidence: "インタビュー3社が明確に導入不可と回答", detail: "UX設計を慎重に行う必要あり" },
+      { id: "concern3", label: "プライバシー懸念", type: "concern", parentId: "propB", speaker: "鈴木 (UXR)", summary: "Slack連携時のDM・プライベートチャンネルの扱いが導入障壁", evidence: "インタビュー3社が明確に導入不可と回答", detail: "UX設計を慎重に行う必要あり", priority: "high", status: "resolved", tags: ["セキュリティ", "プライバシー", "導入障壁"] },
     ],
     edges: [
       { source: "propB", target: "concern3" },
@@ -450,7 +456,7 @@ export const mindMapUpdates: MindMapUpdate[] = [
   {
     triggeredByTranscriptId: "t11",
     nodes: [
-      { id: "decision1", label: "オプトイン方式に決定", type: "decision", parentId: "concern3", speaker: "田中 (PM)", summary: "管理者がチャンネル単位でナレッジ抽出ON/OFFを設定可能にする", detail: "DMは完全対象外。FAQにも明記する方針" },
+      { id: "decision1", label: "オプトイン方式に決定", type: "decision", parentId: "concern3", speaker: "田中 (PM)", summary: "管理者がチャンネル単位でナレッジ抽出ON/OFFを設定可能にする", detail: "DMは完全対象外。FAQにも明記する方針", priority: "high", status: "resolved", tags: ["決定事項", "プライバシー"] },
     ],
     edges: [
       { source: "concern3", target: "decision1" },
@@ -459,8 +465,8 @@ export const mindMapUpdates: MindMapUpdate[] = [
   {
     triggeredByTranscriptId: "t12",
     nodes: [
-      { id: "proposal2", label: "Slack API最小スコープ設計", type: "proposal", parentId: "decision1", speaker: "山田 (Eng)", summary: "channels:historyのみ取得し、groups:read/im:readは要求しない", detail: "OAuth認可画面でユーザーに安心感を与える設計" },
-      { id: "action1", label: "SOC2対応・データ保持ポリシー策定", type: "action", parentId: "decision1", speaker: "山田 (Eng)", summary: "データ保持ポリシーを明確化してセキュリティを差別化要因にする" },
+      { id: "proposal2", label: "Slack API最小スコープ設計", type: "proposal", parentId: "decision1", speaker: "山田 (Eng)", summary: "channels:historyのみ取得し、groups:read/im:readは要求しない", detail: "OAuth認可画面でユーザーに安心感を与える設計", tags: ["技術設計", "Slack API", "OAuth"] },
+      { id: "action1", label: "SOC2対応・データ保持ポリシー策定", type: "action", parentId: "decision1", speaker: "山田 (Eng)", summary: "データ保持ポリシーを明確化してセキュリティを差別化要因にする", priority: "high", status: "open", tags: ["セキュリティ", "SOC2", "コンプライアンス"] },
     ],
     edges: [
       { source: "decision1", target: "proposal2" },
@@ -470,7 +476,7 @@ export const mindMapUpdates: MindMapUpdate[] = [
   {
     triggeredByTranscriptId: "t13",
     nodes: [
-      { id: "proposal3", label: "4月ベータ / 6月末GA", type: "proposal", parentId: "agenda3", speaker: "佐藤 (Biz)", summary: "4月クローズドベータ開始、6月末GA目標", detail: "ベータ対象: インタビューで前向きだった5社" },
+      { id: "proposal3", label: "4月ベータ / 6月末GA", type: "proposal", parentId: "agenda3", speaker: "佐藤 (Biz)", summary: "4月クローズドベータ開始、6月末GA目標", evidence: "前向きな5社をベータ候補として確保済み", detail: "ベータ対象: インタビューで前向きだった5社", priority: "high", tags: ["スケジュール", "ベータ", "GA"] },
     ],
     edges: [
       { source: "agenda3", target: "proposal3" },
@@ -503,7 +509,7 @@ export const mindMapUpdates: MindMapUpdate[] = [
           ],
         },
       },
-      { id: "concern4", label: "テスト不足リスク", type: "concern", parentId: "gantt1", speaker: "山田 (Eng)", summary: "テスト期間が2週間では品質担保が困難", detail: "全タスク合計8週間でギリギリのスケジュール" },
+      { id: "concern4", label: "テスト不足リスク", type: "concern", parentId: "gantt1", speaker: "山田 (Eng)", summary: "テスト期間が2週間では品質担保が困難", evidence: "バックエンド2w + Slack3w + LLM3w = 8w（テスト除く）", detail: "エンタープライズ品質にはQA最低3週間が必要", priority: "high", status: "resolved", tags: ["リスク", "品質", "スケジュール"] },
     ],
     edges: [
       { source: "proposal3", target: "gantt1" },
@@ -513,11 +519,11 @@ export const mindMapUpdates: MindMapUpdate[] = [
   {
     triggeredByTranscriptId: "t16",
     nodes: [
-      { id: "final1", label: "MVP: 案Bに決定", type: "decision", parentId: "agenda2", speaker: "田中 (PM)", summary: "会議要約＋Slack連携をMVPスコープとして決定", detail: "プライバシーはオプトイン方式、DM対象外" },
-      { id: "final2", label: "ベータ: 4月中旬に後倒し", type: "decision", parentId: "agenda3", speaker: "田中 (PM)", summary: "品質確保のため1週間後ろ倒し。エンタープライズの信頼を優先" },
-      { id: "task1", label: "技術仕様ドラフト作成", type: "action", parentId: "final1", speaker: "山田 (Eng)", summary: "MVPの技術仕様書を作成する", detail: "期限: 来週金曜" },
-      { id: "task2", label: "ベータ企業への連絡準備", type: "action", parentId: "final1", speaker: "鈴木 (UXR)", summary: "候補5社への参加打診を準備する", detail: "期限: 来週" },
-      { id: "task3", label: "価格体系の叩き作成", type: "action", parentId: "final1", speaker: "佐藤 (Biz)", summary: "松竹梅の3プランで価格体系を起案する", detail: "期限: 来週" },
+      { id: "final1", label: "MVP: 案Bに決定", type: "decision", parentId: "agenda2", speaker: "田中 (PM)", summary: "会議要約＋Slack連携をMVPスコープとして決定", evidence: "全員一致で案Bを選択", detail: "プライバシーはオプトイン方式、DM対象外", priority: "high", status: "resolved", tags: ["最終決定", "MVP"] },
+      { id: "final2", label: "ベータ: 4月中旬に後倒し", type: "decision", parentId: "agenda3", speaker: "田中 (PM)", summary: "品質確保のため1週間後ろ倒し。エンタープライズの信頼を優先", evidence: "テスト不足リスクを受けてスケジュール調整", detail: "GA目標の6月末は維持", priority: "high", status: "resolved", tags: ["最終決定", "スケジュール"] },
+      { id: "task1", label: "技術仕様ドラフト作成", type: "action", parentId: "final1", speaker: "山田 (Eng)", summary: "MVPの技術仕様書を作成する", evidence: "Slack OAuth + LLMパイプラインの設計を含む", detail: "期限: 来週金曜", priority: "high", status: "in-progress", tags: ["タスク", "技術", "来週〆"] },
+      { id: "task2", label: "ベータ企業への連絡準備", type: "action", parentId: "final1", speaker: "鈴木 (UXR)", summary: "候補5社への参加打診を準備する", evidence: "インタビュー8社中5社が前向き", detail: "期限: 来週", priority: "medium", status: "in-progress", tags: ["タスク", "営業", "来週〆"] },
+      { id: "task3", label: "価格体系の叩き作成", type: "action", parentId: "final1", speaker: "佐藤 (Biz)", summary: "松竹梅の3プランで価格体系を起案する", evidence: "席単価3,000〜5,000円レンジを想定", detail: "期限: 来週", priority: "medium", status: "in-progress", tags: ["タスク", "価格戦略", "来週〆"] },
     ],
     edges: [
       { source: "agenda2", target: "final1" },

@@ -25,8 +25,8 @@ const nodeTypes = {
   metricsCard: MetricsCardNode,
 };
 
-const DEFAULT_WIDTH = 270;
-const DEFAULT_HEIGHT = 110;
+const DEFAULT_WIDTH = 310;
+const DEFAULT_HEIGHT = 140;
 
 // Rich node sizes for dagre layout
 const richNodeSizes: Record<string, { width: number; height: number }> = {
@@ -114,6 +114,9 @@ export default function MindMapPanel({ updates }: MindMapPanelProps) {
             speaker: n.speaker,
             summary: n.summary,
             evidence: n.evidence,
+            priority: n.priority,
+            status: n.status,
+            tags: n.tags,
             isNew: newNodeIds.has(n.id),
             suggestions: allSuggestions[n.id] || [],
             ...richData,

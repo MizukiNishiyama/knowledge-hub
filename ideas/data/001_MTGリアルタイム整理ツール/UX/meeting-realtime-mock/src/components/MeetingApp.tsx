@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import TranscriptPanel from "./TranscriptPanel";
 import MindMapPanel from "./MindMapPanel";
+import MeetingSummary from "./MeetingSummary";
 import {
   transcriptData,
   mindMapUpdates,
@@ -25,6 +26,8 @@ export default function MeetingApp() {
   const [streamingSpeaker, setStreamingSpeaker] = useState("");
   const [streamingTag, setStreamingTag] = useState<StatementTag | undefined>();
   const [isPlaying, setIsPlaying] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const [meetingFinished, setMeetingFinished] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [currentEntryIndex, setCurrentEntryIndex] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -82,6 +85,8 @@ export default function MeetingApp() {
     const nextEntry = transcriptData[currentEntryIndex];
     if (!nextEntry) {
       setIsPlaying(false);
+      setMeetingFinished(true);
+      setTimeout(() => setShowSummary(true), 1500);
       return;
     }
 
@@ -97,6 +102,8 @@ export default function MeetingApp() {
 
   const handleReset = () => {
     setIsPlaying(false);
+    setShowSummary(false);
+    setMeetingFinished(false);
     setCompletedEntries([]);
     setCurrentMindMapUpdates([]);
     setIsStreaming(false);
@@ -157,6 +164,15 @@ export default function MeetingApp() {
             </button>
           )}
 
+          {meetingFinished && !showSummary && (
+            <button
+              onClick={() => setShowSummary(true)}
+              className="px-4 py-1.5 rounded-lg text-xs font-medium bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition-all hover:scale-105 active:scale-95"
+            >
+              議事録を表示
+            </button>
+          )}
+
           {(isPlaying || completedEntries.length > 0) && (
             <button
               onClick={handleReset}
@@ -214,6 +230,15 @@ export default function MeetingApp() {
           )}
         </motion.div>
       </div>
+
+      {/* Meeting Summary Overlay */}
+      {showSummary && (
+        <MeetingSummary
+          entries={completedEntries}
+          updates={currentMindMapUpdates}
+          onClose={() => setShowSummary(false)}
+        />
+      )}
     </div>
   );
 }
