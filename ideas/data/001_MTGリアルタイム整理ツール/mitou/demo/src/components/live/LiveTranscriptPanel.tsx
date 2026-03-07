@@ -76,31 +76,47 @@ export default function LiveTranscriptPanel({
       {/* Segments */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-3 space-y-0">
         <AnimatePresence mode="popLayout">
-          {segments
-            .filter((s) => s.isFinal)
-            .map((segment) => (
-              <motion.div
-                key={segment.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35 }}
-                className="py-2.5 border-b border-gray-100 last:border-b-0"
-              >
-                <div className="flex items-center gap-2 mb-1.5">
-                  {segment.speaker && (
-                    <span className="text-[11px] font-bold text-gray-600">
-                      {segment.speaker}
-                    </span>
-                  )}
-                  <span className="text-[10px] text-gray-300 font-mono ml-auto">
-                    {formatTime(segment.timestamp)}
+          {segments.map((segment) => (
+            <motion.div
+              key={segment.isFinal ? segment.id : "interim_live"}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25 }}
+              className={`py-2.5 border-b last:border-b-0 ${
+                segment.isFinal ? "border-gray-100" : "border-transparent"
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1.5">
+                {segment.speaker && (
+                  <span className="text-[11px] font-bold text-gray-600">
+                    {segment.speaker}
                   </span>
-                </div>
-                <p className="text-[13px] leading-[1.7] text-gray-700">
-                  {segment.text}
-                </p>
-              </motion.div>
-            ))}
+                )}
+                {!segment.isFinal && (
+                  <span className="flex items-center gap-1">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                    </span>
+                    <span className="text-[10px] text-emerald-500 font-medium">
+                      認識中
+                    </span>
+                  </span>
+                )}
+                <span className="text-[10px] text-gray-300 font-mono ml-auto">
+                  {formatTime(segment.timestamp)}
+                </span>
+              </div>
+              <p className={`text-[13px] leading-[1.7] ${
+                segment.isFinal ? "text-gray-700" : "text-gray-400 italic"
+              }`}>
+                {segment.text}
+                {!segment.isFinal && (
+                  <span className="inline-block w-0.5 h-4 bg-emerald-400 ml-0.5 animate-pulse align-middle" />
+                )}
+              </p>
+            </motion.div>
+          ))}
         </AnimatePresence>
 
         {/* Listening indicator */}

@@ -21,6 +21,9 @@ const SILENCE_DURATION_MS = 1800;   // Silence this long = end of speech (1.8s �
 const MAX_SPEECH_MS = 25000;        // Force split at this length (25s — allows long continuous speech)
 const MIN_SPEECH_MS = 800;          // Ignore speech shorter than this (0.8s — filters out noise/clicks)
 
+// Interim transcription: send partial results while still speaking
+const INTERIM_INTERVAL_MS = 2500;   // Send interim result every 2.5s during speech
+
 // --- WAV Header Construction ---
 function buildWavHeader(dataLength: number): Buffer {
   const header = Buffer.alloc(44);
@@ -69,6 +72,10 @@ interface ClientSession {
   lastSpeechTime: number;
   segmentCounter: number;
   processing: boolean;
+  // Interim transcription state
+  interimTimer: ReturnType<typeof setTimeout> | null;
+  interimProcessing: boolean;
+  lastInterimBytes: number; // how many bytes were already sent as interim
 }
 
 function createSession(ws: WebSocket): ClientSession {
@@ -82,17 +89,94 @@ function createSession(ws: WebSocket): ClientSession {
     lastSpeechTime: 0,
     segmentCounter: 0,
     processing: false,
+    interimTimer: null,
+    interimProcessing: false,
+    lastInterimBytes: 0,
   };
 }
 
-// --- Transcription ---
+// --- Whisper transcription helper ---
+async function callWhisper(wavBuffer: Buffer, language: string): Promise<string> {
+  const formData = new FormData();
+  const wavBlob = new Blob([new Uint8Array(wavBuffer)], { type: "audio/wav" });
+  formData.append("file", wavBlob, "audio.wav");
+  formData.append("language", language);
+  formData.append("response_format", "json");
+
+  const res = await fetch(WHISPER_URL, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "Unknown error");
+    throw new Error(`Whisper error ${res.status}: ${errText}`);
+  }
+
+  const data = await res.json();
+  return data.text?.trim() || "";
+}
+
+// --- Interim transcription (partial result while still speaking) ---
+function startInterimTimer(session: ClientSession): void {
+  stopInterimTimer(session);
+  session.lastInterimBytes = 0;
+
+  const tick = async () => {
+    if (!session.isSpeaking || session.interimProcessing) return;
+    if (session.pcmTotalBytes <= session.lastInterimBytes) return;
+    // Need enough new audio to be worth transcribing (~1s minimum)
+    const newBytes = session.pcmTotalBytes - session.lastInterimBytes;
+    if (newBytes < SAMPLE_RATE * 2 * 1) return; // less than 1s of new audio
+
+    session.interimProcessing = true;
+    try {
+      // Snapshot current buffer (don't clear it — speech is ongoing)
+      const pcmData = Buffer.concat(session.pcmBuffers);
+      const wavHeader = buildWavHeader(pcmData.length);
+      const wavBuffer = Buffer.concat([wavHeader, pcmData]);
+
+      const durationSec = (pcmData.length / 2 / SAMPLE_RATE).toFixed(1);
+      console.log(`[WS-STT] Interim transcription: ${durationSec}s`);
+
+      const text = await callWhisper(wavBuffer, session.language);
+      session.lastInterimBytes = session.pcmTotalBytes;
+
+      if (text.length > 0) {
+        console.log(`[WS-STT] Interim: "${text}"`);
+        sendMessage(session.ws, { type: "interim", text });
+      }
+    } catch (err) {
+      console.error("[WS-STT] Interim error:", err);
+    } finally {
+      session.interimProcessing = false;
+      // Schedule next interim if still speaking
+      if (session.isSpeaking) {
+        session.interimTimer = setTimeout(tick, INTERIM_INTERVAL_MS);
+      }
+    }
+  };
+
+  // First interim after INTERIM_INTERVAL_MS
+  session.interimTimer = setTimeout(tick, INTERIM_INTERVAL_MS);
+}
+
+function stopInterimTimer(session: ClientSession): void {
+  if (session.interimTimer) {
+    clearTimeout(session.interimTimer);
+    session.interimTimer = null;
+  }
+}
+
+// --- Final transcription (complete segment after speech ends) ---
 async function transcribeSegment(session: ClientSession): Promise<void> {
+  stopInterimTimer(session);
+
   if (session.processing) return;
   if (session.pcmTotalBytes === 0) return;
 
   const speechDurationMs = (session.pcmTotalBytes / 2 / SAMPLE_RATE) * 1000;
   if (speechDurationMs < MIN_SPEECH_MS) {
-    // Too short, likely noise — discard
     session.pcmBuffers = [];
     session.pcmTotalBytes = 0;
     return;
@@ -105,49 +189,23 @@ async function transcribeSegment(session: ClientSession): Promise<void> {
   // Clear buffer immediately so new audio can accumulate
   session.pcmBuffers = [];
   session.pcmTotalBytes = 0;
+  session.lastInterimBytes = 0;
 
   try {
-    // Build WAV
     const wavHeader = buildWavHeader(pcmData.length);
     const wavBuffer = Buffer.concat([wavHeader, pcmData]);
 
-    console.log(
-      `[WS-STT] Transcribing segment ${segId}: ${pcmData.length} bytes PCM, ` +
-      `${(pcmData.length / 2 / SAMPLE_RATE).toFixed(1)}s duration`
-    );
+    const durationSec = (pcmData.length / 2 / SAMPLE_RATE).toFixed(1);
+    console.log(`[WS-STT] Final transcription ${segId}: ${durationSec}s`);
 
-    // Send to whisper.cpp
-    const formData = new FormData();
-    const wavBlob = new Blob([wavBuffer], { type: "audio/wav" });
-    formData.append("file", wavBlob, "audio.wav");
-    formData.append("language", session.language);
-    formData.append("response_format", "json");
-
-    const res = await fetch(WHISPER_URL, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "Unknown error");
-      console.error(`[WS-STT] Whisper error ${res.status}: ${errText}`);
-      sendMessage(session.ws, {
-        type: "error",
-        message: `Whisper error: ${errText}`,
-      });
-      return;
-    }
-
-    const data = await res.json();
-    const text = data.text?.trim() || "";
+    const text = await callWhisper(wavBuffer, session.language);
 
     if (text.length > 0) {
-      console.log(`[WS-STT] Result [${segId}]: "${text}"`);
+      console.log(`[WS-STT] Final [${segId}]: "${text}"`);
       sendMessage(session.ws, {
         type: "final",
         text,
         id: segId,
-        language: data.language,
       });
     }
   } catch (err) {
@@ -184,6 +242,8 @@ function processAudioFrame(session: ClientSession, data: Buffer): void {
       session.isSpeaking = true;
       session.speechStartTime = now;
       console.log(`[WS-STT] Speech started (RMS: ${rms.toFixed(0)})`);
+      // Start interim transcription timer
+      startInterimTimer(session);
     }
     session.lastSpeechTime = now;
     session.pcmBuffers.push(Buffer.from(data));
@@ -243,6 +303,7 @@ wss.on("connection", (ws, req) => {
           console.log(`[WS-STT] Recording started, language: ${session.language}`);
         } else if (msg.type === "stop") {
           console.log("[WS-STT] Recording stopped by client");
+          stopInterimTimer(session);
           // Flush remaining buffer
           if (session.pcmTotalBytes > 0) {
             session.isSpeaking = false;
@@ -257,6 +318,7 @@ wss.on("connection", (ws, req) => {
 
   ws.on("close", () => {
     console.log(`[WS-STT] Client disconnected from ${clientAddr}`);
+    stopInterimTimer(session);
     // Flush remaining
     if (session.pcmTotalBytes > 0) {
       session.isSpeaking = false;

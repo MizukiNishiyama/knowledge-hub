@@ -151,25 +151,49 @@ export default function LiveMeetingApp() {
     requestStructureRef.current = requestStructure;
   }, [requestStructure]);
 
-  // Handle transcript from WebSocket STT
+  // Handle transcript from WebSocket STT (both interim and final)
   const handleTranscript = useCallback(
     (text: string, id: string, isFinal: boolean) => {
-      if (!isFinal) return;
-
       const trimmed = text.trim();
       if (!trimmed) return;
 
-      const segId = id || `seg_${++segmentCounter.current}`;
-      segmentCounter.current++;
       const now = Date.now();
 
-      const newSegment: LiveTranscriptSegment = {
-        id: segId,
-        text: trimmed,
-        timestamp: now,
-        isFinal: true,
-      };
-      setSegments((prev) => [...prev, newSegment]);
+      if (!isFinal) {
+        // ── Interim: show/update a live "typing" segment at the bottom ──
+        setSegments((prev) => {
+          const interimIdx = prev.findIndex((s) => !s.isFinal);
+          if (interimIdx >= 0) {
+            // Update existing interim segment in place
+            const updated = [...prev];
+            updated[interimIdx] = { ...updated[interimIdx], text: trimmed, timestamp: now };
+            return updated;
+          }
+          // Create new interim segment
+          return [...prev, {
+            id: "interim_live",
+            text: trimmed,
+            timestamp: now,
+            isFinal: false,
+          }];
+        });
+        return;
+      }
+
+      // ── Final: replace interim with finalized segment ──
+      const segId = id || `seg_${++segmentCounter.current}`;
+      segmentCounter.current++;
+
+      setSegments((prev) => {
+        // Remove any interim segment and append final
+        const withoutInterim = prev.filter((s) => s.isFinal);
+        return [...withoutInterim, {
+          id: segId,
+          text: trimmed,
+          timestamp: now,
+          isFinal: true,
+        }];
+      });
 
       // ── Instant client-side structure (no LLM wait) ──
       const tag = detectTag(trimmed);
@@ -178,7 +202,6 @@ export default function LiveMeetingApp() {
       const immediateNodes: StructuredNode[] = [];
       const immediateEdges: StructuredEdge[] = [];
 
-      // Create root node on first segment
       if (isFirst) {
         immediateNodes.push({
           id: "live_root",
@@ -189,7 +212,6 @@ export default function LiveMeetingApp() {
         });
       }
 
-      // Create a node for this segment
       immediateNodes.push({
         id: `instant_${segId}`,
         label: truncateLabel(trimmed),
@@ -204,13 +226,12 @@ export default function LiveMeetingApp() {
         target: `instant_${segId}`,
       });
 
-      // Add instant update (shows on map immediately)
       setStructureUpdates((prev) => [
         ...prev,
         { nodes: immediateNodes, edges: immediateEdges },
       ]);
 
-      // ── Also buffer for LLM enrichment (adds richer relationships async) ──
+      // ── Also buffer for LLM enrichment ──
       unstructuredBufferRef.current.push(trimmed);
       requestStructureRef.current();
     },
