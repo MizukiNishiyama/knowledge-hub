@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useStreamingSTT } from "@/lib/useStreamingSTT";
 import LiveTranscriptPanel from "./LiveTranscriptPanel";
@@ -37,6 +37,8 @@ export default function LiveMeetingApp() {
   const segmentCounter = useRef(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const pendingStructure = useRef(false);
+  const unstructuredBufferRef = useRef<string[]>([]);
+  const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check backend health on mount
   useEffect(() => {
@@ -61,8 +63,11 @@ export default function LiveMeetingApp() {
     }
   }, [meetingStarted]);
 
-  // Collect all existing node IDs
-  const allNodeIds = structureUpdates.flatMap((u) => u.nodes.map((n) => n.id));
+  // Collect all existing node IDs (memoized to avoid recreating requestStructure every render)
+  const allNodeIds = useMemo(
+    () => structureUpdates.flatMap((u) => u.nodes.map((n) => n.id)),
+    [structureUpdates]
+  );
 
   // Build context from past segments
   const buildContext = useCallback(() => {
@@ -72,59 +77,85 @@ export default function LiveMeetingApp() {
       .join("\n");
   }, [segments]);
 
-  // Send text to LLM for structuring
+  // Send buffered text to LLM for structuring.
+  // Reads from unstructuredBufferRef so no text is lost between calls.
   const requestStructure = useCallback(
-    async (newText: string) => {
-      if (pendingStructure.current || !newText.trim()) return;
+    async () => {
+      if (pendingStructure.current) return;
+
+      const bufferedText = unstructuredBufferRef.current.join("\n");
+      if (!bufferedText.trim()) return;
+
+      // Drain buffer before sending
+      unstructuredBufferRef.current = [];
       pendingStructure.current = true;
       setIsProcessing(true);
+
       try {
         const res = await fetch("/api/structure", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            newText,
+            newText: bufferedText,
             previousContext: buildContext(),
             existingNodeIds: allNodeIds,
           }),
         });
         if (res.ok) {
           const update: StructureUpdate = await res.json();
-          if (update.nodes.length > 0) {
+          if (update.nodes && update.nodes.length > 0) {
             setStructureUpdates((prev) => [...prev, update]);
           }
+        } else {
+          console.error("[Structure] API error:", res.status, await res.text().catch(() => ""));
         }
       } catch (err) {
-        console.error("Structure request failed:", err);
+        console.error("[Structure] Request failed:", err);
       } finally {
         pendingStructure.current = false;
         setIsProcessing(false);
+
+        // Retry if more text accumulated while we were processing
+        if (unstructuredBufferRef.current.length > 0) {
+          if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+          retryTimerRef.current = setTimeout(() => requestStructureRef.current(), 200);
+        }
       }
     },
     [buildContext, allNodeIds]
   );
+
+  // Keep a stable ref so the retry setTimeout always calls the latest version
+  const requestStructureRef = useRef(requestStructure);
+  useEffect(() => {
+    requestStructureRef.current = requestStructure;
+  }, [requestStructure]);
 
   // Handle transcript from WebSocket STT
   const handleTranscript = useCallback(
     (text: string, id: string, isFinal: boolean) => {
       if (!isFinal) return; // For now, only process final results
 
+      const trimmed = text.trim();
+      if (!trimmed) return;
+
       const segId = id || `seg_${++segmentCounter.current}`;
       const newSegment: LiveTranscriptSegment = {
         id: segId,
-        text: text.trim(),
+        text: trimmed,
         timestamp: Date.now(),
         isFinal: true,
       };
       setSegments((prev) => [...prev, newSegment]);
       segmentCounter.current++;
 
-      // Trigger structuring every 2 segments or if text is substantial
-      if (segmentCounter.current % 2 === 0 || text.length > 50) {
-        requestStructure(text.trim());
-      }
+      // Buffer text for structure request
+      unstructuredBufferRef.current.push(trimmed);
+
+      // Trigger structuring on every segment (requestStructure handles dedup via pendingStructure)
+      requestStructureRef.current();
     },
-    [requestStructure]
+    [] // no deps — uses refs for latest values
   );
 
   const { isCapturing, isConnected, error: micError, start: startMic, stop: stopMic } =
@@ -152,7 +183,10 @@ export default function LiveMeetingApp() {
     setShowSummary(false);
     setElapsedSec(0);
     segmentCounter.current = 0;
+    unstructuredBufferRef.current = [];
+    pendingStructure.current = false;
     if (timerRef.current) clearInterval(timerRef.current);
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
   };
 
   const formatTime = (sec: number) => {

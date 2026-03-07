@@ -11,9 +11,11 @@ Cloudflare認証は人間が手動で通す。
   4. メインページが表示されたら自動でガチャが始まる
   5. Ctrl+C で停止
 """
+import os
 import re
 import signal
 import sys
+import tempfile
 
 from playwright.sync_api import sync_playwright
 
@@ -72,8 +74,16 @@ def run():
     print("=" * 50)
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, channel="chrome")
-        page = browser.new_page()
+        user_data_dir = os.path.join(tempfile.gettempdir(), "wikigacha_profile")
+        context = p.chromium.launch_persistent_context(
+            user_data_dir,
+            headless=False,
+            channel="chrome",
+            args=[
+                "--disable-blink-features=AutomationControlled",
+            ],
+        )
+        page = context.pages[0] if context.pages else context.new_page()
 
         print(f"\nブラウザで {URL} を開きます...")
         page.goto(URL, wait_until="domcontentloaded", timeout=60000)
@@ -101,7 +111,7 @@ def run():
 
         if not passed:
             print("タイムアウトまたは中断")
-            browser.close()
+            context.close()
             return
 
         page.wait_for_timeout(3000)
@@ -192,7 +202,7 @@ def run():
                 page.wait_for_timeout(3000)
 
         print(f"\n=== 終了 === 合計ガチャ回数: {draw_count}")
-        browser.close()
+        context.close()
 
 
 if __name__ == "__main__":
