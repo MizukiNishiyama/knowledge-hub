@@ -91,10 +91,14 @@ export default function LiveMeetingApp() {
     const existingIds = structureUpdatesRef.current
       .flatMap((u) => u.nodes.map((n) => n.id));
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 90_000);
+
     try {
       const res = await fetch("/api/structure", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           newText: batchText,
           previousContext: context,
@@ -103,6 +107,7 @@ export default function LiveMeetingApp() {
       });
       if (res.ok) {
         const update: StructureUpdate = await res.json();
+        console.log("[Structure] Got update:", update.nodes.length, "nodes");
         if (update.nodes && update.nodes.length > 0) {
           setStructureUpdates((prev) => [...prev, update]);
         }
@@ -110,8 +115,13 @@ export default function LiveMeetingApp() {
         console.error("[Structure] API error:", res.status, await res.text().catch(() => ""));
       }
     } catch (err) {
-      console.error("[Structure] Request failed:", err);
+      if (err instanceof DOMException && err.name === "AbortError") {
+        console.error("[Structure] Request timed out (90s)");
+      } else {
+        console.error("[Structure] Request failed:", err);
+      }
     } finally {
+      clearTimeout(timeout);
       processingRef.current = false;
       setIsProcessing(false);
 

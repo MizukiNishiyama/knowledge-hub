@@ -71,20 +71,30 @@ ${newText}
     { role: "user", content: userPrompt },
   ];
 
-  const res = await fetch(`${OLLAMA_URL}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      messages,
-      stream: false,
-      format: "json",
-      options: {
-        temperature: 0.3,
-        num_predict: 2048,
-      },
-    }),
-  });
+  // Timeout: abort if Ollama takes too long (cold start can be slow)
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60_000);
+
+  let res: Response;
+  try {
+    res = await fetch(`${OLLAMA_URL}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        messages,
+        stream: false,
+        format: "json",
+        options: {
+          temperature: 0.3,
+          num_predict: 2048,
+        },
+      }),
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "Unknown error");
@@ -92,8 +102,12 @@ ${newText}
   }
 
   const data = await res.json();
-  const content = data.message?.content || "{}";
+  let content: string = data.message?.content || "{}";
 
+  // Qwen3.5 may emit <think>...</think> tags before JSON — strip them
+  content = content.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+
+  // Try direct parse first, then regex extraction as fallback
   try {
     const parsed = JSON.parse(content);
     return {
@@ -102,7 +116,21 @@ ${newText}
       suggestions: parsed.suggestions || [],
     };
   } catch {
-    console.error("Failed to parse LLM response:", content);
+    // Fallback: extract first JSON object from the response
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return {
+          nodes: parsed.nodes || [],
+          edges: parsed.edges || [],
+          suggestions: parsed.suggestions || [],
+        };
+      } catch {
+        // fall through
+      }
+    }
+    console.error("Failed to parse LLM response:", content.slice(0, 500));
     return { nodes: [], edges: [], suggestions: [] };
   }
 }
