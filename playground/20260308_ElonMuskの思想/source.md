@@ -2,7 +2,7 @@
 
 | # | タイトル | URL | 種別 | 概要 |
 |---|---------|-----|------|------|
-| 1 | How Elon Musk is inspired by the Science Fiction genre (Medium) | https://medium.com/@dheimstad/how-elon-musk-is-inspired-by-the-science-fiction-genre-5a032fc40af6 | 記事 | マスクのSF読書歴と少年時代の経験を詳述 |
+| 1 | How Elon Musk is inspired by the Science Fiction genre / Walter Isaacson伝記 / 複数一次インタビュー | https://medium.com/@dheimstad/how-elon-musk-is-inspired-by-the-science-fiction-genre-5a032fc40af6 | 記事・伝記 | マスクのSF読書歴、ニーチェ・ボストロムの影響、幼少期いじめ、核心的哲学の直接引用 |
 | 2 | イーロン・マスクの思考を生んだ幼少期の愛読本（東洋経済） | https://toyokeizai.net/articles/-/650890 | 記事 | 幼少期の読書習慣、いじめ体験、百科事典2セット読破等の経緯 |
 | 3 | Why 'Hitchhiker's Guide' author is Elon Musk's 'favorite philosopher' (CNBC) | https://www.cnbc.com/2019/07/23/why-hitchhikers-guide-author-is-elon-musks-favorite-philosopher.html | 記事 | マスクがダグラス・アダムズを「お気に入りの哲学者」と語る一次インタビュー |
 | 4 | The 3 books and series that most inspired Elon Musk (Fortune) | https://fortune.com/2023/09/14/books-that-inspired-elon-musk-openai-spacex/ | 記事 | アシモフ『ファウンデーション』をTesla Roadsterに搭載した逸話を含む |
