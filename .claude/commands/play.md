@@ -35,7 +35,11 @@ reference.md の仕様・品質基準・フォーマットに**厳密に**従い
 - 各ソースに「タイトル・URL・種別・概要」を記載
 - 種別は「記事/論文/レポート/公式サイト/統計/プレスリリース」等から選択
 
-#### Step 3: ディレクトリリネーム
+#### Step 3: summary.pdf
+- reference.md に記載された Python スクリプト（markdown + WeasyPrint）を使い、summary.md を PDF に変換する
+- 同じディレクトリに `summary.pdf` として保存する
+
+#### Step 4: ディレクトリリネーム
 - `playground/$ARGUMENTS` を `playground/{YYYYMMDD}_{name}` にリネーム
 - YYYYMMDD は本日の日付、name は元のディレクトリ名
 
@@ -48,6 +52,7 @@ reference.md の仕様・品質基準・フォーマットに**厳密に**従い
 - [ ] 「まとめ」が単なる要約ではなく、論点横断的な洞察を含んでいるか
 - [ ] 追加の論点がリサーチ前には立てられなかった問いになっているか
 - [ ] reference.md のフォーマットに準拠しているか
+- [ ] summary.pdf が正常に生成され、日本語・テーブルが正しく表示されているか
 
 ## ルール
 

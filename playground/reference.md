@@ -169,7 +169,53 @@
 
 ---
 
-### 2. source.md
+### 2. summary.pdf
+
+summary.md を PDF に変換し、同じディレクトリに保存する。
+
+**変換方法**:
+`markdown` と `WeasyPrint` の2ライブラリを使用する。
+
+```python
+import markdown
+from weasyprint import HTML
+
+# 1. Markdown → HTML
+with open("summary.md", "r") as f:
+    md_text = f.read()
+
+html_body = markdown.markdown(md_text, extensions=["tables", "fenced_code"])
+
+# 2. HTML を整形（日本語フォント・余白・テーブルスタイル指定）
+html_full = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  body {{ font-family: "Hiragino Sans", "Noto Sans CJK JP", sans-serif; font-size: 11pt; line-height: 1.7; margin: 40px; }}
+  h1 {{ font-size: 18pt; border-bottom: 2px solid #333; padding-bottom: 4px; }}
+  h2 {{ font-size: 15pt; border-bottom: 1px solid #999; padding-bottom: 3px; margin-top: 28px; }}
+  h3 {{ font-size: 13pt; margin-top: 20px; }}
+  h4 {{ font-size: 11pt; margin-top: 16px; }}
+  table {{ border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 10pt; }}
+  th, td {{ border: 1px solid #ccc; padding: 6px 10px; text-align: left; }}
+  th {{ background: #f5f5f5; font-weight: bold; }}
+  blockquote {{ border-left: 4px solid #ccc; margin: 12px 0; padding: 8px 16px; color: #555; }}
+  code {{ background: #f4f4f4; padding: 2px 4px; border-radius: 3px; font-size: 10pt; }}
+  pre {{ background: #f4f4f4; padding: 12px; border-radius: 4px; overflow-x: auto; }}
+</style>
+</head><body>{html_body}</body></html>"""
+
+# 3. HTML → PDF
+HTML(string=html_full).write_pdf("summary.pdf")
+```
+
+**注意事項**:
+- `pip install markdown weasyprint` が必要
+- 日本語フォントが環境にインストールされていること（macOS は Hiragino Sans が標準搭載）
+- テーブル・コードブロック・引用が正しくレンダリングされることを確認する
+
+---
+
+### 3. source.md
 
 リサーチで参照した全ソースの一覧。summary.md 内のソース番号 `[1][2]...` と対応させる。
 
