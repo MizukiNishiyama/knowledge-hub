@@ -103,8 +103,47 @@ function extractSummaryExcerpt(md: string): string | null {
   return paragraphs.length > 0 ? paragraphs.join(" ") : null;
 }
 
+/** ひらがな・カタカナのみの文字列かチェック */
+function isKanaOnly(s: string): boolean {
+  return /^[\u3040-\u309F\u30A0-\u30FF\s　ー・]+$/.test(s.trim());
+}
+
+/** 氏名フィールドから { name, reading } を抽出
+ * パターン:
+ *   "古賀篤（こが あつし）" → name="古賀篤",    reading="こが あつし"
+ *   "いとう たつお"         → name=<dir名>,      reading="いとう たつお"
+ *   "石川まさる"            → name="石川まさる",  reading=null
+ */
+function parseNameAndReading(
+  nameField: string | null,
+  dirName: string
+): { name: string; reading: string | null } {
+  if (!nameField) return { name: dirName, reading: null };
+
+  const trimmed = nameField.trim();
+
+  // パターン1: 漢字（よみ）
+  const parenMatch = trimmed.match(/^(.+?)[\（(]([ぁ-ん\s　ァ-ヶー・]+)[\）)]/);
+  if (parenMatch) {
+    return {
+      name: parenMatch[1].trim() || dirName,
+      reading: parenMatch[2].trim(),
+    };
+  }
+
+  // パターン2: よみのみ（ひらがな/カタカナのみ）
+  if (isKanaOnly(trimmed)) {
+    return { name: dirName, reading: trimmed };
+  }
+
+  // パターン3: 漢字のみ or 混合 → readingなし
+  return { name: trimmed || dirName, reading: null };
+}
+
 function parseSummaryMd(md: string, sourcePath: string, house: string) {
-  const name = extractTableValue(md, "氏名");
+  const nameField = extractTableValue(md, "氏名");
+  const dirName = path.basename(sourcePath);
+  const { name, reading } = parseNameAndReading(nameField, dirName);
   const party = extractTableValue(md, "政党") || "不明";
   const district = extractTableValue(md, "選挙区");
   const birthDate = extractTableValue(md, "生年月日");
@@ -121,7 +160,8 @@ function parseSummaryMd(md: string, sourcePath: string, house: string) {
   const summaryExcerpt = extractSummaryExcerpt(md);
 
   return {
-    name: name || path.basename(sourcePath),
+    name,
+    reading,
     house,
     party,
     district,

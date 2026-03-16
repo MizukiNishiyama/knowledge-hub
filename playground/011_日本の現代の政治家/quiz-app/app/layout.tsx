@@ -3,9 +3,9 @@ import "./globals.css";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "政治家クイズ",
+  title: "日本の政治家クイズ",
   description: "日本の国会議員を学ぶフラッシュカードアプリ",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "政治家クイズ" },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "日本の政治家クイズ" },
 };
 
 export const viewport: Viewport = {
@@ -33,7 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="max-w-5xl mx-auto px-6">
             <div className="flex items-center justify-between h-14">
               <Link href="/" className="font-bold text-lg text-blue-700">
-                🏛 政治家クイズ
+                🏛 日本の政治家クイズ
               </Link>
               <div className="flex gap-1 text-sm">
                 {NAV_ITEMS.map((item) => (

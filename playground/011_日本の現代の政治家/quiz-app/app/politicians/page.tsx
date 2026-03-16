@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 interface Politician {
   id: number;
   name: string;
+  reading: string | null;
   house: string;
   party: string;
   district: string | null;
@@ -125,6 +126,9 @@ function PoliticianCard({ p }: { p: Politician }) {
                 <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">閣僚</span>
               )}
             </div>
+            {p.reading && (
+              <div className="text-xs text-gray-400 mt-0.5">{p.reading}</div>
+            )}
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               {partyBadge(p.party)}
               <span className="text-xs text-gray-500">{p.house === "衆議院" ? "衆" : "参"}</span>
@@ -160,9 +164,12 @@ function PoliticianRow({ p }: { p: Politician }) {
   return (
     <tr className="hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0">
       <td className="px-4 py-3">
-        <Link href={`/politicians/${p.id}`} className="font-medium text-blue-600 hover:underline flex items-center gap-1">
-          {p.name}
-          {memorized && <span className="text-yellow-500 text-xs">⭐</span>}
+        <Link href={`/politicians/${p.id}`} className="hover:underline">
+          <div className="font-medium text-blue-600 flex items-center gap-1">
+            {p.name}
+            {memorized && <span className="text-yellow-500 text-xs">⭐</span>}
+          </div>
+          {p.reading && <div className="text-xs text-gray-400">{p.reading}</div>}
         </Link>
       </td>
       <td className="px-3 py-3 text-xs text-gray-500">{p.house === "衆議院" ? "衆" : "参"}</td>

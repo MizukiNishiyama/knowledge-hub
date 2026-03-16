@@ -8,6 +8,7 @@ import { Suspense } from "react";
 interface Politician {
   id: number;
   name: string;
+  reading: string | null;
   house: string;
   party: string;
   district: string | null;
@@ -98,6 +99,9 @@ function FlipCard({ politician, onAnswer }: {
             <div className="text-4xl md:text-5xl font-bold text-gray-900 text-center leading-tight">
               {politician.name}
             </div>
+            {politician.reading && (
+              <div className="mt-2 text-sm text-gray-400 tracking-wide">{politician.reading}</div>
+            )}
             {politician.memoryStats && (
               <div className="mt-8 flex gap-5 text-sm">
                 <span className="text-green-500 font-semibold">✓ {politician.memoryStats.correctCount}</span>

@@ -11,6 +11,7 @@ datasource db {
 model Politician {
   id             Int      @id @default(autoincrement())
   name           String
+  reading        String?
   house          String
   party          String   @default("")
   district       String?

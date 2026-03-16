@@ -7,6 +7,7 @@ import Link from "next/link";
 interface Politician {
   id: number;
   name: string;
+  reading: string | null;
   house: string;
   party: string;
   district: string | null;
@@ -175,6 +176,9 @@ export default function PoliticianDetailPage() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">{politician.name}</h1>
+            {politician.reading && (
+              <p className="text-sm text-gray-400 mt-0.5 tracking-wide">{politician.reading}</p>
+            )}
             <div className="flex flex-wrap gap-2 mt-2">
               <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">{politician.house}</span>
               <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">{politician.party}</span>
