@@ -130,11 +130,11 @@ function parseSummaryMd(md: string, sourcePath: string, house: string) {
     electionCount,
     faction,
     summaryExcerpt,
-    career: JSON.stringify(career),
-    positions: JSON.stringify(positions),
-    policy: JSON.stringify(policyItems),
-    achievements: JSON.stringify(achievementItems),
-    evaluations: JSON.stringify(evaluationItems),
+    career: career as unknown as import("@prisma/client").Prisma.InputJsonValue,
+    positions: positions as unknown as import("@prisma/client").Prisma.InputJsonValue,
+    policy: policyItems as unknown as import("@prisma/client").Prisma.InputJsonValue,
+    achievements: achievementItems as unknown as import("@prisma/client").Prisma.InputJsonValue,
+    evaluations: evaluationItems as unknown as import("@prisma/client").Prisma.InputJsonValue,
     rawSummaryMd: md,
     sourcePath,
   };
@@ -190,11 +190,9 @@ async function ingest() {
             });
             updated++;
           } else {
-            const created_pol = await prisma.politician.create({
+            // memory_stats はDBトリガーで自動作成される
+            await prisma.politician.create({
               data: { ...data, sourcesMd },
-            });
-            await prisma.memoryStats.create({
-              data: { politicianId: created_pol.id },
             });
             created++;
           }

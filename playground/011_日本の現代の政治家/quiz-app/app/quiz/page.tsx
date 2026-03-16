@@ -35,92 +35,126 @@ function FlipCard({ politician, onAnswer }: {
   onAnswer: (correct: boolean) => void;
 }) {
   const [flipped, setFlipped] = useState(false);
+  const [swipeDir, setSwipeDir] = useState<"left" | "right" | null>(null);
+  const touchStartX = useState<number | null>(null);
 
   const career = parseJSON(politician.career).slice(0, 3);
   const positions = parseJSON(politician.positions).slice(0, 3);
 
+  // スワイプ操作（答え表示後: 右=正解, 左=不正解）
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX[1](e.touches[0].clientX);
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX[0] === null || !flipped) return;
+    const dx = e.changedTouches[0].clientX - touchStartX[0];
+    if (Math.abs(dx) > 60) {
+      const correct = dx > 0;
+      setSwipeDir(correct ? "right" : "left");
+      setTimeout(() => { setSwipeDir(null); onAnswer(correct); }, 300);
+    }
+    touchStartX[1](null);
+  };
+
   return (
-    <div className="w-full max-w-lg mx-auto">
-      {/* Card container with 3D flip */}
-      <div className="relative h-80 md:h-96" style={{ perspective: "1000px" }}>
+    <div className="w-full max-w-lg mx-auto select-none">
+      {/* Swipe hint */}
+      {flipped && (
+        <div className="flex justify-between text-xs text-gray-300 px-2 mb-2">
+          <span>← スワイプで不正解</span>
+          <span>正解でスワイプ →</span>
+        </div>
+      )}
+
+      {/* Card */}
+      <div
+        className="relative"
+        style={{ perspective: "1200px" }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <div
-          className="w-full h-full transition-transform duration-500 relative"
+          className="w-full transition-all duration-400"
           style={{
             transformStyle: "preserve-3d",
-            transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
+            transform: flipped
+              ? swipeDir === "right" ? "rotateY(180deg) translateX(-40px)"
+              : swipeDir === "left"  ? "rotateY(180deg) translateX(40px)"
+              : "rotateY(180deg)"
+              : swipeDir === "right" ? "rotateY(0deg) translateX(-40px)"
+              : swipeDir === "left"  ? "rotateY(0deg) translateX(40px)"
+              : "rotateY(0deg)",
+            minHeight: "280px",
           }}
         >
           {/* Front */}
           <div
-            className="absolute inset-0 bg-white rounded-2xl border border-gray-200 shadow-lg flex flex-col items-center justify-center p-8"
-            style={{ backfaceVisibility: "hidden" }}
+            className="absolute inset-0 bg-white rounded-2xl border-2 border-gray-100 shadow-xl flex flex-col items-center justify-center p-8"
+            style={{ backfaceVisibility: "hidden", minHeight: "280px" }}
           >
-            <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">
+            <div className="text-xs font-medium text-gray-400 tracking-wider mb-6">
               {politician.house} • {politician.party}
             </div>
-            <div className="text-4xl md:text-5xl font-bold text-gray-900 text-center">
+            <div className="text-4xl md:text-5xl font-bold text-gray-900 text-center leading-tight">
               {politician.name}
             </div>
             {politician.memoryStats && (
-              <div className="mt-6 flex gap-4 text-sm">
-                <span className="text-green-600">正解: {politician.memoryStats.correctCount}</span>
-                <span className="text-red-500">不正解: {politician.memoryStats.incorrectCount}</span>
-                {politician.memoryStats.memorized && (
-                  <span className="text-yellow-500 font-medium">⭐ 記憶済み</span>
-                )}
+              <div className="mt-8 flex gap-5 text-sm">
+                <span className="text-green-500 font-semibold">✓ {politician.memoryStats.correctCount}</span>
+                <span className="text-red-400 font-semibold">✗ {politician.memoryStats.incorrectCount}</span>
+                {politician.memoryStats.memorized && <span className="text-yellow-500">⭐ 記憶済み</span>}
               </div>
             )}
+            <div className="mt-8 text-xs text-gray-300">タップして答えを見る</div>
           </div>
 
           {/* Back */}
           <div
-            className="absolute inset-0 bg-white rounded-2xl border border-gray-200 shadow-lg p-6 overflow-y-auto"
-            style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
+            className="absolute inset-0 bg-white rounded-2xl border-2 border-blue-100 shadow-xl p-5 overflow-y-auto"
+            style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)", minHeight: "280px" }}
           >
-            <div className="text-xl font-bold text-gray-900 mb-3">{politician.name}</div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm mb-3">
-              <div className="text-gray-500">院</div>
-              <div className="font-medium">{politician.house}</div>
-              <div className="text-gray-500">政党</div>
-              <div className="font-medium">{politician.party}</div>
-              {politician.district && (
-                <>
-                  <div className="text-gray-500">選挙区</div>
-                  <div className="font-medium">{politician.district}</div>
-                </>
-              )}
-              {politician.age && (
-                <>
-                  <div className="text-gray-500">年齢</div>
-                  <div className="font-medium">{politician.age}歳</div>
-                </>
-              )}
-              {politician.electionCount && (
-                <>
-                  <div className="text-gray-500">当選回数</div>
-                  <div className="font-medium">{politician.electionCount}</div>
-                </>
-              )}
-              {politician.faction && (
-                <>
-                  <div className="text-gray-500">派閥</div>
-                  <div className="font-medium text-xs">{politician.faction}</div>
-                </>
-              )}
+            <div className="text-lg font-bold text-gray-900 mb-4">{politician.name}</div>
+            <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm mb-4">
+              <span className="text-gray-400 text-xs pt-0.5">院</span>
+              <span className="font-medium">{politician.house}</span>
+              <span className="text-gray-400 text-xs pt-0.5">政党</span>
+              <span className="font-medium text-sm">{politician.party}</span>
+              {politician.district && <>
+                <span className="text-gray-400 text-xs pt-0.5">選挙区</span>
+                <span className="font-medium">{politician.district}</span>
+              </>}
+              {politician.age && <>
+                <span className="text-gray-400 text-xs pt-0.5">年齢</span>
+                <span className="font-medium">{politician.age}歳</span>
+              </>}
+              {politician.electionCount && <>
+                <span className="text-gray-400 text-xs pt-0.5">当選</span>
+                <span className="font-medium">{politician.electionCount}</span>
+              </>}
+              {politician.faction && <>
+                <span className="text-gray-400 text-xs pt-0.5">派閥</span>
+                <span className="font-medium text-xs">{politician.faction}</span>
+              </>}
             </div>
             {politician.summaryExcerpt && (
-              <p className="text-xs text-gray-600 mb-2 bg-gray-50 rounded p-2 line-clamp-3">
+              <p className="text-xs text-gray-600 bg-blue-50 rounded-lg p-2.5 mb-3 leading-relaxed">
                 {politician.summaryExcerpt}
               </p>
             )}
             {career.length > 0 && (
-              <div className="text-xs">
-                <div className="text-gray-500 font-medium mb-1">主な経歴</div>
-                <ul className="space-y-0.5">
-                  {career.map((c, i) => (
-                    <li key={i} className="text-gray-700 line-clamp-1">• {c}</li>
-                  ))}
-                </ul>
+              <div>
+                <div className="text-xs text-gray-400 font-semibold mb-1.5">主な経歴</div>
+                {career.map((c, i) => (
+                  <div key={i} className="text-xs text-gray-700 py-0.5 truncate">• {c}</div>
+                ))}
+              </div>
+            )}
+            {positions.length > 0 && (
+              <div className="mt-2">
+                <div className="text-xs text-gray-400 font-semibold mb-1.5">歴任ポスト</div>
+                {positions.slice(0,2).map((p, i) => (
+                  <div key={i} className="text-xs text-gray-700 py-0.5 truncate">• {p}</div>
+                ))}
               </div>
             )}
           </div>
@@ -128,33 +162,33 @@ function FlipCard({ politician, onAnswer }: {
       </div>
 
       {/* Action buttons */}
-      <div className="mt-6 space-y-3">
+      <div className="mt-5 space-y-3">
         {!flipped ? (
           <button
             onClick={() => setFlipped(true)}
-            className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors text-lg"
+            className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-lg hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm"
           >
             答えを見る
           </button>
         ) : (
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => onAnswer(true)}
-              className="py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-colors text-lg flex items-center justify-center gap-2"
-            >
-              ✓ 正解
-            </button>
-            <button
               onClick={() => onAnswer(false)}
-              className="py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-colors text-lg flex items-center justify-center gap-2"
+              className="py-4 bg-red-500 text-white rounded-2xl font-bold text-lg hover:bg-red-600 active:bg-red-700 transition-colors shadow-sm flex items-center justify-center gap-2"
             >
               ✗ 不正解
+            </button>
+            <button
+              onClick={() => onAnswer(true)}
+              className="py-4 bg-green-500 text-white rounded-2xl font-bold text-lg hover:bg-green-600 active:bg-green-700 transition-colors shadow-sm flex items-center justify-center gap-2"
+            >
+              ✓ 正解
             </button>
           </div>
         )}
         <Link
           href={`/politicians/${politician.id}`}
-          className="block text-center text-sm text-blue-600 hover:underline py-1"
+          className="block text-center text-sm text-gray-400 hover:text-blue-600 py-1 transition-colors"
         >
           詳細を見る →
         </Link>

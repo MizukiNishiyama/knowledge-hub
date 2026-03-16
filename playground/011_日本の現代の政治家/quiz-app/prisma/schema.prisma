@@ -3,53 +3,65 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Politician {
   id             Int      @id @default(autoincrement())
   name           String
   house          String
-  party          String
+  party          String   @default("")
   district       String?
   age            Int?
-  birthDate      String?
+  birthDate      String?  @map("birth_date")
   faction        String?
-  electionCount  String?
-  summaryExcerpt String?
-  career         String?
-  positions      String?
-  policy         String?
-  achievements   String?
-  evaluations    String?
-  rawSummaryMd   String
-  sourcesMd      String?
-  sourcePath     String   @unique
-  isActive       Boolean  @default(true)
-  updatedAt      DateTime @updatedAt
+  electionCount  String?  @map("election_count")
+  summaryExcerpt String?  @map("summary_excerpt")
+  career         Json     @default("[]")
+  positions      Json     @default("[]")
+  policy         Json     @default("[]")
+  achievements   Json     @default("[]")
+  evaluations    Json     @default("[]")
+  rawSummaryMd   String   @default("") @map("raw_summary_md")
+  sourcesMd      String?  @map("sources_md")
+  sourcePath     String   @unique @map("source_path")
+  hasMinisterExperience Boolean @default(false) @map("has_minister_experience")
+  isActive       Boolean  @default(true) @map("is_active")
+  updatedAt      DateTime @updatedAt @map("updated_at")
   memoryStats    MemoryStats?
   quizAttempts   QuizAttempt[]
+
+  @@map("politicians")
 }
 
 model MemoryStats {
-  politicianId    Int      @id
-  politician      Politician @relation(fields: [politicianId], references: [id])
-  correctCount    Int      @default(0)
-  incorrectCount  Int      @default(0)
-  lastAnsweredAt  DateTime?
-  memorized       Boolean  @default(false)
+  politicianId    Int       @id @map("politician_id")
+  politician      Politician @relation(fields: [politicianId], references: [id], onDelete: Cascade)
+  correctCount    Int       @default(0) @map("correct_count")
+  incorrectCount  Int       @default(0) @map("incorrect_count")
+  lastAnsweredAt  DateTime? @map("last_answered_at")
+  memorized       Boolean   @default(false)
+
+  @@map("memory_stats")
 }
 
 model QuizAttempt {
-  id           Int      @id @default(autoincrement())
-  politicianId Int
-  politician   Politician @relation(fields: [politicianId], references: [id])
-  answeredAt   DateTime @default(now())
-  isCorrect    Boolean
+  id           Int        @id @default(autoincrement())
+  politicianId Int        @map("politician_id")
+  politician   Politician @relation(fields: [politicianId], references: [id], onDelete: Cascade)
+  answeredAt   DateTime   @default(now()) @map("answered_at")
+  isCorrect    Boolean    @map("is_correct")
+
+  @@map("quiz_attempts")
 }
 
 model Settings {
-  id                 Int @id @default(autoincrement())
-  memorizedThreshold Int @default(10)
+  id                 Int      @id @default(autoincrement())
+  memorizedThreshold Int      @default(10) @map("memorized_threshold")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
 }
