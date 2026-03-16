@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const ageRange = searchParams.get("ageRange");       // 30s|40s|50s|60s|70plus
   const hasMinister = searchParams.get("hasMinister"); // true|false
   const electionMin = searchParams.get("electionMin"); // 数字文字列
-  const sortBy = searchParams.get("sortBy") || "name"; // name|age|party|house
+  const sortBy = searchParams.get("sortBy") || "reading"; // reading|name|age|party|house|correct
   const sortDir = (searchParams.get("sortDir") || "asc") as "asc" | "desc";
   const page = parseInt(searchParams.get("page") || "1");
   const limit = parseInt(searchParams.get("limit") || "50");
@@ -53,13 +53,20 @@ export async function GET(req: NextRequest) {
   const orderBy: Prisma.PoliticianOrderByWithRelationInput[] = [];
   if (sortBy === "age") {
     orderBy.push({ age: sortDir });
+    orderBy.push({ reading: "asc" });
   } else if (sortBy === "party") {
     orderBy.push({ party: sortDir });
+    orderBy.push({ reading: "asc" });
   } else if (sortBy === "house") {
     orderBy.push({ house: sortDir });
+    orderBy.push({ reading: "asc" });
   } else if (sortBy === "correct") {
     orderBy.push({ memoryStats: { correctCount: sortDir } });
+  } else if (sortBy === "name") {
+    orderBy.push({ name: sortDir });
   } else {
+    // デフォルト: よみがな（あいうえお）順、よみなしは name で末尾
+    orderBy.push({ reading: sortDir });
     orderBy.push({ name: sortDir });
   }
 

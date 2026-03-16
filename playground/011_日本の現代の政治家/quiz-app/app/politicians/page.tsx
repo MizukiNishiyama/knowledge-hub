@@ -43,7 +43,7 @@ function partyBadge(party: string) {
   );
 }
 
-type SortKey = "name" | "age" | "party" | "house" | "correct";
+type SortKey = "reading" | "name" | "age" | "party" | "house" | "correct";
 
 function ChipGroup<T extends string>({
   value,
@@ -212,7 +212,7 @@ function PoliticiansContent() {
   const search = searchParams.get("search") || "";
   const ageRange = searchParams.get("ageRange") || "";
   const hasMinister = searchParams.get("hasMinister") || "";
-  const sortBy = (searchParams.get("sortBy") || "name") as SortKey;
+  const sortBy = (searchParams.get("sortBy") || "reading") as SortKey;
   const sortDir = (searchParams.get("sortDir") || "asc") as "asc" | "desc";
 
   const [searchInput, setSearchInput] = useState(search);
@@ -426,6 +426,7 @@ function PoliticiansContent() {
             <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">並び順</div>
             <div className="flex flex-wrap gap-1.5">
               {([
+                { label: "あいうえお順", key: "reading" as SortKey },
                 { label: "名前", key: "name" as SortKey },
                 { label: "年齢", key: "age" as SortKey },
                 { label: "政党", key: "party" as SortKey },
