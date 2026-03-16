@@ -37,6 +37,94 @@ function parseJSON(s: string | null): string[] {
   try { return JSON.parse(s); } catch { return []; }
 }
 
+interface SourceRow { no: string; title: string; url: string; type: string; desc: string; }
+
+function parseSourcesMd(md: string): SourceRow[] {
+  const rows: SourceRow[] = [];
+  const lines = md.split("\n");
+  let inTable = false;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("|")) { inTable = false; continue; }
+    if (trimmed.includes("---")) { inTable = true; continue; }
+    if (!inTable) { inTable = true; continue; } // skip header row first encounter
+    const cells = trimmed.split("|").map((s) => s.trim()).filter((_, i, a) => i > 0 && i < a.length - 1);
+    if (cells.length >= 5) {
+      rows.push({ no: cells[0], title: cells[1], url: cells[2], type: cells[3], desc: cells[4] });
+    } else if (cells.length === 4) {
+      rows.push({ no: cells[0], title: cells[1], url: cells[2], type: cells[3], desc: "" });
+    }
+  }
+  return rows;
+}
+
+const TYPE_BADGE: Record<string, string> = {
+  "公式":     "bg-blue-100 text-blue-700",
+  "公式サイト": "bg-blue-100 text-blue-700",
+  "議会DB":   "bg-indigo-100 text-indigo-700",
+  "報道":     "bg-orange-100 text-orange-700",
+  "選挙DB":   "bg-green-100 text-green-700",
+  "百科事典": "bg-gray-100 text-gray-600",
+  "Wikipedia": "bg-gray-100 text-gray-600",
+};
+
+function SourcesTable({ md }: { md: string }) {
+  const rows = parseSourcesMd(md);
+  if (rows.length === 0) return null;
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+      <h2 className="text-lg font-semibold text-gray-800 mb-3">参考ソース</h2>
+      <div className="space-y-2">
+        {rows.map((row, i) => {
+          const isUrl = row.url.startsWith("http");
+          const badgeCls = TYPE_BADGE[row.type] ?? "bg-gray-100 text-gray-600";
+          return (
+            <div key={i} className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+              <span className="text-xs text-gray-400 font-mono pt-0.5 w-4 shrink-0">{row.no}</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {isUrl ? (
+                    <a
+                      href={row.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium text-blue-600 hover:underline truncate"
+                    >
+                      {row.title}
+                    </a>
+                  ) : (
+                    <span className="text-sm font-medium text-gray-800">{row.title}</span>
+                  )}
+                  {row.type && (
+                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium shrink-0 ${badgeCls}`}>
+                      {row.type}
+                    </span>
+                  )}
+                </div>
+                {row.desc && <p className="text-xs text-gray-500 mt-0.5">{row.desc}</p>}
+                {isUrl && (
+                  <p className="text-xs text-gray-400 truncate mt-0.5">{row.url}</p>
+                )}
+              </div>
+              {isUrl && (
+                <a
+                  href={row.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-300 hover:text-blue-500 shrink-0 text-sm pt-0.5"
+                  aria-label="外部リンクを開く"
+                >
+                  ↗
+                </a>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Section({ title, items }: { title: string; items: string[] }) {
   if (items.length === 0) return null;
   return (
@@ -186,12 +274,7 @@ export default function PoliticianDetailPage() {
       </div>
 
       {/* Source */}
-      {politician.sourcesMd && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-800 mb-3">ソース</h2>
-          <pre className="text-xs text-gray-500 whitespace-pre-wrap overflow-auto max-h-40">{politician.sourcesMd}</pre>
-        </div>
-      )}
+      {politician.sourcesMd && <SourcesTable md={politician.sourcesMd} />}
     </div>
   );
 }
