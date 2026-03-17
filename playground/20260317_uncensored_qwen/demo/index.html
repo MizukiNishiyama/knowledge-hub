@@ -51,6 +51,7 @@ header {
   font-weight: 700;
   background: linear-gradient(135deg, #7c6af5, #a78bfa);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   white-space: nowrap;
 }
@@ -109,6 +110,9 @@ button {
 .btn-clear:hover { color: var(--text); }
 .btn-sys    { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); }
 .btn-sys:hover { color: var(--text); }
+.btn-think  { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); }
+.btn-think:hover { color: var(--text); }
+.btn-think.active { background: rgba(124,106,245,.2); color: #a78bfa; border-color: var(--accent); }
 button:disabled { opacity: .4; cursor: not-allowed; }
 
 /* ─── System prompt drawer ─── */
@@ -341,6 +345,61 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   margin-right: auto;
 }
 
+/* ─── Thinking block ─── */
+.thinking-block {
+  margin-bottom: 8px;
+  border: 1px solid #3a3060;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 12px;
+}
+.thinking-block summary {
+  padding: 6px 12px;
+  background: rgba(124,106,245,.12);
+  color: #a78bfa;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.thinking-block summary::before { content: "▶"; font-size: 10px; transition: transform .2s; }
+.thinking-block[open] summary::before { transform: rotate(90deg); }
+.thinking-block .thinking-body {
+  padding: 10px 12px;
+  background: rgba(124,106,245,.05);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
+}
+/* thinking live indicator */
+.thinking-live {
+  padding: 8px 12px;
+  color: #a78bfa;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(124,106,245,.08);
+  border: 1px solid #3a3060;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.think-spinner {
+  width: 12px; height: 12px;
+  border: 2px solid #3a3060;
+  border-top-color: #a78bfa;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
 /* scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -357,6 +416,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   </div>
   <div class="header-actions">
     <button class="btn-pull" id="btn-pull" style="display:none">⬇ モデルをPull</button>
+    <button class="btn-think" id="btn-think" onclick="toggleThink()" title="Thinking mode: 内部推論トークンを表示/非表示">🧠 Think: OFF</button>
     <button class="btn-sys" id="btn-sys" onclick="toggleSys()">⚙ システムプロンプト</button>
     <button class="btn-clear" id="btn-clear" onclick="clearChat()">🗑 クリア</button>
   </div>
@@ -410,6 +470,8 @@ const UNCENSORED_KEYWORDS = ["uncensored", "abliterated", "ablated", "unfiltered
 let messages = [];
 let isGenerating = false;
 let abortCtrl = null;
+// [FIX OPT-1] think mode OFF by default (36.9s→2.7s for simple queries)
+let thinkMode = false;
 
 // ── Init ──────────────────────────────────────────────
 async function init() {
@@ -571,33 +633,45 @@ async function sendMessage() {
   const model = document.getElementById("model-select").value;
   const sysPrompt = document.getElementById("sys-prompt").value.trim();
 
-  // Hide empty state
   document.getElementById("empty-state").style.display = "none";
 
-  // Add user message
   messages.push({ role: "user", content: text });
   appendMessage("user", text);
   input.value = "";
   autoResize(input);
 
   // Build payload
+  // [FIX OPT-1] include think flag so Ollama suppresses thinking tokens when OFF
   const payload = {
     model,
     messages: sysPrompt
       ? [{ role: "system", content: sysPrompt }, ...messages]
       : [...messages],
     stream: true,
+    think: thinkMode,
     options: { temperature: 0.7 }
   };
 
-  // Start AI response
-  const aiBubble = appendMessage("assistant", null); // returns bubble element
+  const { bubble: aiBubble, thinkingEl } = appendAssistantShell();
   setGenerating(true);
 
   abortCtrl = new AbortController();
   const startTime = Date.now();
   let tokenCount = 0;
   let fullResponse = "";
+  let fullThinking = "";
+  // [FIX OPT-2] debounce: schedule one renderMarkdown per animation frame
+  let renderPending = false;
+
+  const scheduleRender = () => {
+    if (renderPending) return;
+    renderPending = true;
+    requestAnimationFrame(() => {
+      aiBubble.innerHTML = renderMarkdown(fullResponse);
+      scrollToBottom();
+      renderPending = false;
+    });
+  };
 
   try {
     setStatus("spinning", `${model} が生成中...`);
@@ -617,41 +691,94 @@ async function sendMessage() {
     }
 
     const reader = r.body.getReader();
-    const decoder = new TextDecoder();
-    aiBubble.innerHTML = "";
+    // [FIX OPT-2] stateful TextDecoder: handles multi-byte UTF-8 across chunk boundaries
+    const decoder = new TextDecoder("utf-8", { fatal: false });
+    let partialLine = "";
+    let streamDone = false; // [FIX BUG-3] flag to break outer while loop
 
-    while (true) {
+    while (!streamDone) {
       const { done, value } = await reader.read();
       if (done) break;
-      const lines = decoder.decode(value).split("\n").filter(Boolean);
-      for (const line of lines) {
-        try {
-          const obj = JSON.parse(line);
-          const chunk = obj.message?.content || "";
-          if (chunk) {
-            fullResponse += chunk;
-            tokenCount++;
-            aiBubble.innerHTML = renderMarkdown(fullResponse);
-            scrollToBottom();
 
-            const elapsed = (Date.now() - startTime) / 1000;
-            const tps = (tokenCount / elapsed).toFixed(1);
-            document.getElementById("speed-display").textContent = `${tps} tok/s`;
+      // decode with stream:true to preserve multi-byte sequences across reads
+      const text_chunk = decoder.decode(value, { stream: true });
+      const lines = (partialLine + text_chunk).split("\n");
+      // last element may be incomplete — save as partial
+      partialLine = lines.pop();
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          const obj = JSON.parse(trimmed);
+
+          // [FIX BUG-1] handle thinking field
+          const thinkChunk = obj.message?.thinking || "";
+          const contentChunk = obj.message?.content || "";
+
+          if (thinkChunk && thinkingEl) {
+            fullThinking += thinkChunk;
+            updateThinkingEl(thinkingEl, fullThinking, false);
           }
-          if (obj.done) break;
-        } catch {}
+
+          if (contentChunk) {
+            // Transition: thinking done, content starting
+            if (fullThinking && thinkingEl) {
+              updateThinkingEl(thinkingEl, fullThinking, true);
+            }
+            fullResponse += contentChunk;
+            tokenCount++;
+            scheduleRender(); // [FIX OPT-2] debounced
+            const elapsed = (Date.now() - startTime) / 1000;
+            document.getElementById("speed-display").textContent =
+              `${(tokenCount / elapsed).toFixed(1)} tok/s`;
+          }
+
+          // [FIX BUG-3] break both loops when stream is done
+          if (obj.done) {
+            // flush final partial
+            if (partialLine.trim()) {
+              try {
+                const last = JSON.parse(partialLine.trim());
+                if (last.message?.content) fullResponse += last.message.content;
+              } catch {}
+            }
+            streamDone = true;
+            // Final stats from done object
+            const et = obj.eval_count;
+            const ed = obj.eval_duration ? obj.eval_duration / 1e9 : null;
+            if (et && ed) {
+              const tps = (et / ed).toFixed(1);
+              document.getElementById("speed-display").textContent = `${tps} tok/s`;
+              setStatus("ok", `完了 — ${et} tok / ${ed.toFixed(1)}s / ${tps} tok/s`);
+            }
+            break;
+          }
+        } catch {} // partial JSON – silently skip (already buffered in partialLine)
       }
     }
 
+    // Flush decoder
+    decoder.decode(); // no-op but clears internal state
+
+    // Ensure thinking section is collapsed on completion
+    if (fullThinking && thinkingEl) updateThinkingEl(thinkingEl, fullThinking, true);
+    // Final render
+    aiBubble.innerHTML = renderMarkdown(fullResponse);
+    scrollToBottom();
+
     messages.push({ role: "assistant", content: fullResponse });
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    const finalTps = (tokenCount / parseFloat(elapsed)).toFixed(1);
-    setStatus("ok", `完了 — ${tokenCount} トークン / ${elapsed}s / ${finalTps} tok/s`);
-    document.getElementById("speed-display").textContent = `${finalTps} tok/s`;
+    if (!streamDone) {
+      // stream ended without done=true (network close)
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      setStatus("ok", `完了 — ${tokenCount} chunks / ${elapsed}s`);
+    }
 
   } catch (e) {
     if (e.name === "AbortError") {
       messages.push({ role: "assistant", content: fullResponse });
+      if (fullThinking && thinkingEl) updateThinkingEl(thinkingEl, fullThinking, true);
+      aiBubble.innerHTML = renderMarkdown(fullResponse);
       setStatus("ok", "生成を停止しました");
     } else {
       aiBubble.textContent = `❌ エラー: ${e.message}`;
@@ -666,26 +793,73 @@ async function sendMessage() {
 function appendMessage(role, text) {
   const msg = document.createElement("div");
   msg.className = `message ${role}`;
-
   const avatar = document.createElement("div");
   avatar.className = `avatar ${role === "user" ? "user" : "ai"}`;
   avatar.textContent = role === "user" ? "You" : "AI";
-
   const bubble = document.createElement("div");
   bubble.className = "bubble";
-
-  if (text === null) {
-    // Typing indicator
-    bubble.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
-  } else {
-    bubble.innerHTML = renderMarkdown(text);
-  }
-
+  bubble.innerHTML = renderMarkdown(text || "");
   msg.appendChild(avatar);
   msg.appendChild(bubble);
   document.getElementById("messages").appendChild(msg);
   scrollToBottom();
   return bubble;
+}
+
+// [FIX BUG-1] Assistant shell: includes optional thinking block + content bubble
+function appendAssistantShell() {
+  const msg = document.createElement("div");
+  msg.className = "message assistant";
+  const avatar = document.createElement("div");
+  avatar.className = "avatar ai";
+  avatar.textContent = "AI";
+  const wrapper = document.createElement("div");
+  wrapper.className = "bubble";
+  wrapper.style.cssText = "padding:0; background:none; border:none; max-width:calc(100% - 50px); display:flex; flex-direction:column; gap:6px;";
+
+  // thinking live indicator (shown while thinking is streaming)
+  let thinkingEl = null;
+  if (thinkMode) {
+    thinkingEl = document.createElement("div");
+    thinkingEl.className = "thinking-live";
+    thinkingEl.innerHTML = '<div class="think-spinner"></div><span>思考中...</span>';
+    wrapper.appendChild(thinkingEl);
+  }
+
+  // actual content bubble
+  const contentBubble = document.createElement("div");
+  contentBubble.className = "bubble";
+  contentBubble.style.cssText = "padding:12px 16px;";
+  contentBubble.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+  wrapper.appendChild(contentBubble);
+
+  msg.appendChild(avatar);
+  msg.appendChild(wrapper);
+  document.getElementById("messages").appendChild(msg);
+  scrollToBottom();
+  return { bubble: contentBubble, thinkingEl };
+}
+
+// Update thinking block: live → collapsed details
+function updateThinkingEl(el, text, finished) {
+  if (!el) return;
+  if (!finished) {
+    // Still thinking: update live indicator text
+    const words = text.split(/\s+/).length;
+    el.innerHTML = `<div class="think-spinner"></div><span>思考中... (${words} words)</span>`;
+  } else {
+    // Replace live indicator with collapsible details
+    const details = document.createElement("details");
+    details.className = "thinking-block";
+    const summary = document.createElement("summary");
+    summary.textContent = `思考プロセス (${text.split(/\s+/).length} words)`;
+    const body = document.createElement("div");
+    body.className = "thinking-body";
+    body.textContent = text;
+    details.appendChild(summary);
+    details.appendChild(body);
+    el.replaceWith(details);
+  }
 }
 
 function renderMarkdown(text) {
@@ -740,6 +914,16 @@ function setStatus(type, msg) {
 
 function toggleSys() {
   document.getElementById("sys-drawer").classList.toggle("open");
+}
+
+function toggleThink() {
+  thinkMode = !thinkMode;
+  const btn = document.getElementById("btn-think");
+  btn.textContent = `🧠 Think: ${thinkMode ? "ON" : "OFF"}`;
+  btn.classList.toggle("active", thinkMode);
+  setStatus("ok", thinkMode
+    ? "Think モード ON — 内部推論を表示（低速）"
+    : "Think モード OFF — 直接応答（高速）");
 }
 
 function clearChat() {
