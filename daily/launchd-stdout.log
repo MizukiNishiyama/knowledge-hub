@@ -252,3 +252,39 @@ Changes not staged for commit:
 	modified:   daily/run.log
 
 no changes added to commit (use "git add" and/or "git commit -a")
+コミットは成功しましたが、git push の認証が設定されていないためプッシュできませんでした。ユーザーが手動で `git push origin main` を実行する必要があります。
+
+---
+
+**Daily AI Briefing 2026-03-22 完了**
+
+`daily/2026_03_22/summary.md`（13KB）と `summary.pdf`（137KB）を生成・コミットしました。
+
+**本日の主要トピック:**
+
+1. **フロンティアモデル**: 過去24時間の新規フラッグシップリリースなし。直近の主要リリースはClaude Opus 4.6（SWE-bench 75.6%）、Gemini 3.1 Pro（$2/$12/1M tokens）、DeepSeek V4（1T params/32B active）。
+
+2. **エージェント・ツール**: Google Colab MCPサーバー公開（3/17）、MCP月間SDKダウンロード9,700万回突破。Claude Codeが8ヶ月でコーディングツール首位に。
+
+3. **政策・規制**: Pentagon-Anthropic訴訟が業界横断的な議論に発展。OpenAI・Google従業員30名超がAnthropicを支持。EU AI Act高リスク条項は2026年8月施行予定。
+
+4. **注目発言**: Amodei vs Altman の Pentagon契約を巡る公開バトルが激化→Amodeiが謝罪。Karpathyの「LLMは1960年代のOS設計」発言。Muskが「xAIは基礎から再構築中」と自認。
+
+5. **GitHub Trending**: project-nomad（+2,054、オフラインAIサバイバルPC）が突出。claude-hud（+957）もClaude Code人気を反映。
+
+**push失敗について**: `git push origin main` を手動で実行してください（認証設定が必要です）。
+On branch main
+Your branch is ahead of 'origin/main' by 1 commit.
+  (use "git push" to publish your local commits)
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   daily/launchd-stdout.log
+	modified:   daily/run.log
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	career/thoughts/
+
+no changes added to commit (use "git add" and/or "git commit -a")
