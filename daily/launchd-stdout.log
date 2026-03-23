@@ -288,3 +288,14 @@ Untracked files:
 	career/thoughts/
 
 no changes added to commit (use "git add" and/or "git commit -a")
+git push も正常完了しました。すべての作業が完了しています。
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   daily/launchd-stdout.log
+	modified:   daily/run.log
+
+no changes added to commit (use "git add" and/or "git commit -a")

@@ -14,3 +14,5 @@ git: 'credential-!gh' is not a git command. See 'git --help'.
 Everything up-to-date
 git: 'credential-!gh' is not a git command. See 'git --help'.
 fatal: could not read Username for 'https://github.com': Device not configured
+git: 'credential-!gh' is not a git command. See 'git --help'.
+Everything up-to-date
