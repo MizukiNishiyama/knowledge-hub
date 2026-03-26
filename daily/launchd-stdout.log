@@ -299,3 +299,52 @@ Changes not staged for commit:
 	modified:   daily/run.log
 
 no changes added to commit (use "git add" and/or "git commit -a")
+Failed to authenticate. API Error: 401 {"type":"error","error":{"type":"authentication_error","message":"Invalid OAuth token. The provided token was not found or is malformed."},"request_id":"req_011CZLqpEa6M8Q3wiKy2tZvc"}
+完了しました。
+
+## Daily AI Briefing 2026-03-25 生成完了
+
+`daily/2026_03_25/summary.md` と `summary.pdf`（120KB）を生成・プッシュしました。
+
+### 本日のハイライト
+
+**1. フロンティアモデル**
+- **Anthropic** が Claude Computer Use を一般公開（3/24）。Mac上でブラウザ・アプリを自律操作
+- GPT-5.4・Gemini 3.1 Pro が Artificial Analysis Index で57点タイの首位
+
+**2. エージェント・ツール**
+- **Cursor Composer 2** が Claude Opus 4.6 同等性能を86%低コストで実現
+- LangChain Deep Agents・NVIDIA 連携が3月中旬に相次いでリリース
+
+**3. 規制**
+- **Anthropic vs ペンタゴン訴訟**の口頭弁論が本日（3/25）開催。裁判官は「ブラックリスト指定は会社を潰す試みに見える」と発言
+
+**4. 注目発言**
+- Dario Amodei の内部メモリーク → 謝罪事件でAnthropicとOpenAIの亀裂が表面化
+- Karpathy が「slopacolypse（AI生成スパム地獄）」を予言
+
+**5. GitHub Trending**
+- `bytedance/deer-flow`（+4,319★）が首位。ByteDanceのOSSエージェントフレームワーク参入
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   daily/launchd-stdout.log
+	modified:   daily/run.log
+
+no changes added to commit (use "git add" and/or "git commit -a")
+
+On branch main
+Your branch is ahead of 'origin/main' by 1 commit.
+  (use "git push" to publish your local commits)
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   daily/launchd-stderr.log
+	modified:   daily/launchd-stdout.log
+	modified:   daily/run.log
+
+no changes added to commit (use "git add" and/or "git commit -a")
