@@ -88,15 +88,60 @@ generated_at: 2026-03-28 08:00 JST
 
 ## 4. 注目の発言・ポジション
 
-### Anthropic（2026-03-27）
+### Sam Altman（OpenAI CEO）
 
-> 「我々は現在、Mythosと呼ばれる新しいモデルをテストしている。これは私たちが構築した中で最もパワフルなモデルだ」（Anthropic 内部文書より、リーク）
+> 「誰も何をすべきか分からない」（BlackRock Summit, 2026-03-11）
 
-**文脈**: CMS設定ミスによる内部ドラフト流出。Anthropicは存在を認め「テスト段階」と確認したが、「前例のないサイバーセキュリティリスク」を理由に正式リリースを留保していることを明言。Opusを超える新モデルティアの存在が公式に認知された初のケース。 ([Fortune](https://fortune.com/2026/03/26/anthropic-says-testing-mythos-powerful-new-ai-model-after-data-leak-reveals-its-existence-step-change-in-capabilities/))
+**文脈**: AIによる労働・資本バランスの崩壊を初めて「問題」として公式に認めた。これまでの「AIは雇用を補完する」という楽観論からの転換。同時期に「2026年9月までにAI研究インターン、2028年3月に真の自動化研究者」というロードマップを公表し、AGIへの具体的タイムラインも示した。([Fortune](https://fortune.com/2026/03/12/sam-altman-ai-labor-capital-jobs-nobody-knows/) / [X @sama](https://x.com/sama/status/1983584366547829073))
+
+> 「Soraは終了する」（2026-03-25）
+
+**文脈**: 生成動画事業から撤退し、エージェント・推論へのリソースを集中する方針を表明。OpenAIのプロダクト戦略の重点が明確にエージェントへとシフト。
 
 ---
 
-本日特記すべき個人の発言（Sam Altman / Jensen Huang / Karpathy 等）については確認できた重要発言なし。
+### Dario Amodei（Anthropic CEO）
+
+> 「我々は愛国者だ。しかし、自律兵器・大規模監視へのセーフガード削除は断った」（CBS News, 2026-03-01）
+
+**文脈**: Pentagonとの契約を排除された理由を公式説明。Anthropicの「安全性」が単なるブランディングでなく、事業戦略の根幹であることを宣言。同時期に「OpenAIの軍事AI発言は straight-up lies」と名指し批判し、両社の路線分岐が決定的となった。([CBS News](https://www.cbsnews.com/news/ai-executive-dario-amodei-on-the-red-lines-anthropic-would-not-cross/) / [TechCrunch](https://techcrunch.com/2026/03/04/anthropic-ceo-dario-amodei-calls-openais-messaging-around-military-deal-straight-up-lies-report-says/))
+
+> 「Claudeが意識を持つ確率は15〜20%かもしれない」（NYT インタビュー）
+
+**文脈**: Claudeの内部で「不安ニューロン」が発見され、Claude自身が意識確率を自己評価した結果を公表。AIの道徳的地位についてCEOが「分からない」と初めて公式に認めた。([Futurism](https://futurism.com/artificial-intelligence/anthropic-ceo-unsure-claude-conscious) / [Newsweek](https://www.newsweek.com/anthropic-ceo-raises-unsettling-possibility-about-ai-11644833))
+
+---
+
+### Elon Musk
+
+> 「全ての仕事はオプションになる。お金は無関係になる」（Abundance Summit, 2026-03-15）
+
+**文脈**: AI雇用問題に対してAltmanの「誰も分からない」と対照的に「豊かさで解決する」という明確な立場を表明。同時期（3/22）にTerafab（Tesla・SpaceX・xAI合弁、250億ドルの2nmチップ製造施設）を発表し、NVIDIA依存からの独立戦略を具体化。([Medium/Predict](https://medium.com/predict/elon-musk-just-said-ai-will-make-all-jobs-optional-and-money-irrelevant-the-same-week-10-000-37191c9890ae) / [KUT Radio](https://www.kut.org/business/2026-03-22/austin-tx-elon-musk-ai-chip-terafab-tesla-spacex))
+
+---
+
+### Jensen Huang（NVIDIA CEO）
+
+> 「我々はAGIのレベルに達した。AIだけで1億ドル企業を経営できる」（GTC 2026, 2026-03-16〜19）
+
+**文脈**: 2024年に「5年後」と述べていたAGI達成予測を大幅前倒しで宣言。「10年後のNVIDIAは人間75,000人・AIエージェント750万体」という具体比率（1:100）を提示。2027年までに1兆ドルのチップ需要予測、NemoClaw（自律AIエージェント構築プラットフォーム）も発表。([Yahoo Finance](https://finance.yahoo.com/news/nvidia-ceo-jensen-huang-claims-agi-has-been-achieved-can-create-billion-dollar-businesses-172225126.html) / [Fortune](https://fortune.com/2026/03/19/jensen-huang-nvidia-ai-agents-future-of-work-autonomous/))
+
+---
+
+### Andrej Karpathy
+
+> 「プログラマーとして、これほど遅れていると感じたことはない」（X, 2026年3月下旬）
+
+**文脈**: AIエージェント開発の第一人者が自身のスキル陳腐化を認めた異例の発言。同時期にAutoResearch（630行Python、2日間で700実験・20最適化を自動発見）を公開し、自己改善ループ時代の実証を示す。「March of Nines」論考では「90%の信頼性は最初の1つの9に過ぎず、各桁は同じ工数がかかる」とエージェントの産業実装の困難さを定式化。([X @karpathy](https://x.com/karpathy/status/2004607146781278521) / [VentureBeat](https://venturebeat.com/technology/karpathys-march-of-nines-shows-why-90-ai-reliability-isnt-even-close-to-enough))
+
+---
+
+### Demis Hassabis vs Yann LeCun（公開論争）
+
+> LeCun「汎用知能（General Intelligence）という概念自体がナンセンス（BS）だ」
+> Hassabis「LeCunは全くの誤りで、汎用知能と普遍的知能を混同している」（X, 2026年3月）
+
+**文脈**: Meta（現LLMアプローチの限界論）対Google DeepMind（人間脳を参照点としたAGI到達可能論）の公開論争。MuskもHassabis支持を表明。「AGI」の定義自体が各社の事業戦略・研究方針を規定する語彙戦争に発展。([The Decoder](https://the-decoder.com/yann-lecun-calls-general-intelligence-complete-bs-and-deepmind-ceo-hassabis-fires-back-publicly/) / [X @demishassabis](https://x.com/demishassabis/status/2003097405026193809))
 
 ---
 
