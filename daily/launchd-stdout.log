@@ -348,3 +348,47 @@ Changes not staged for commit:
 	modified:   daily/run.log
 
 no changes added to commit (use "git add" and/or "git commit -a")
+完了しました。
+
+---
+
+## Daily AI Briefing 2026-03-27 生成完了
+
+**出力ファイル**:
+- `daily/2026_03_27/summary.md`（12KB）
+- `daily/2026_03_27/summary.pdf`（134KB）— pandoc + xelatex で生成
+- コミット＆プッシュ済み（`7815ce5`）
+
+---
+
+**各セクションのハイライト**:
+
+**1. フロンティアモデル**
+- Google: Gemini 3.1 Flash Live を3/26プレビュー公開（リアルタイム音声・視覚エージェントAPI）
+- Apple: iOS 27でSiriを他社AI（Claude, Gemini等）に開放予定（Bloomberg, 3/26）
+- DeepSeek V4 は未リリース継続、ただしコンテキスト128K→1Mトークンに拡張済み
+
+**2. エージェント・ツール**
+- MCP TypeScript SDK v1.27、Google Colab MCPサーバーリリース
+- Claude Codeがモバイルツール（Figma/Canva/Amplitude）に対応（3/26）
+
+**3. 政策・規制**
+- EU AI Act の高リスクAI規制が8月全面適用へ（違反時最大€35M or 売上高7%）
+- トランプ政権: Zuckerberg・Huang・Ellison を24名AI政策委員会に任命予定
+
+**4. 注目発言**
+- Dario Amodei vs Sam Altman: Pentagon契約を巡る「straight up lies」発言と謝罪（3月初旬の最重要対立）
+- Andrej Karpathy: 「slopacolypse」予言（1/26）
+
+**5. GitHub Trending**
+- last30days-skill（+2,684）・deer-flow by ByteDance（+2,388）が双璧。リサーチ自動化エージェントへの関心が急上昇
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   daily/launchd-stdout.log
+	modified:   daily/run.log
+
+no changes added to commit (use "git add" and/or "git commit -a")
