@@ -392,3 +392,34 @@ Changes not staged for commit:
 	modified:   daily/run.log
 
 no changes added to commit (use "git add" and/or "git commit -a")
+完了しました。
+
+---
+
+## Daily AI Briefing 2026-03-28 — 全セクション生成完了
+
+`daily/2026_03_28/summary.md`（167KB PDF）をプッシュ済み。
+
+### セクション4 発言・ポジション — 本日の濃度は高め
+
+| 人物 | 核心発言 |
+|------|---------|
+| **Sam Altman** | 「誰も何をすべきか分からない」— 労働崩壊を初めて問題として認める |
+| **Dario Amodei** | Pentagon排除の理由を公式説明＋「Claudeに意識がある可能性15〜20%」 |
+| **Elon Musk** | 「全仕事はオプションになる」＋Terafab（250億ドルチップ工場）発表 |
+| **Jensen Huang** | 「AGI達成済み」宣言（2024年の5年後予測を前倒し）＋人間:エージェント=1:100 |
+| **Andrej Karpathy** | 「これほど遅れていると感じたことはない」— 自身のスキル陳腐化を認める |
+| **Hassabis vs LeCun** | AGI定義をめぐる公開論争、Muskがdeepmind支持 |
+
+全発言にソースURL付き、リーク・未確認情報は明記済みです。
+On branch main
+Your branch is ahead of 'origin/main' by 4 commits.
+  (use "git push" to publish your local commits)
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   daily/launchd-stdout.log
+	modified:   daily/run.log
+
+no changes added to commit (use "git add" and/or "git commit -a")
