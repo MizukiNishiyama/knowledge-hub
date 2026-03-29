@@ -423,3 +423,40 @@ Changes not staged for commit:
 	modified:   daily/run.log
 
 no changes added to commit (use "git add" and/or "git commit -a")
+push 成功（credentialの警告は無害）。
+
+---
+
+**Daily AI Briefing 2026-03-29** を生成・コミット・プッシュしました。
+
+### 本日のハイライト
+
+**セクション1 フロンティアモデル**
+- GPT-5.4（1Mトークン context）、Claude Opus/Sonnet 4.6（メモリ機能全展開）、Gemini 3.1 Flash-Lite（$0.25/M トークン）が出揃う
+- Llama 4（Scout: 10M トークン context）、Qwen 3.5 全サイズ完成、DeepSeek-Prover-V2（Lean 4 定理証明）
+
+**セクション2 AIエージェント**
+- MCP 月間DL 9,700万を突破、SurePath AI が MCP Policy Controls ローンチ（3/12）
+- Cursor 2.0 が 8 エージェント並列実行（worktree 分離）、Claude Code が 1 位
+
+**セクション3 政策**
+- 日本 AI促進法は 2025/9 施行済み・罰則なしモデル。政府 AI 「Gennai」 は 5 月に 10 万ユーザー向けロールアウト
+- EU は高リスク AI 規制の 2026/8 全面適用を延期検討中
+
+**セクション4 発言**
+- Amodei vs Altman の Pentagon 契約対立が 3 月最大の業界トピック（Amodei 謝罪後も交渉継続中）
+- Jensen Huang が GTC で Amodei の雇用消失論を「想像力不足」と一蹴
+
+**セクション5 GitHub Trending**
+- `obra/superpowers`（+2,293 Shell）が本日 1 位。エージェント型 Shell フレームワーク
+- `SakanaAI/AI-Scientist-v2`（自動科学的発見）、`virattt/dexter`（財務リサーチエージェント）も注目
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   daily/launchd-stdout.log
+	modified:   daily/run.log
+
+no changes added to commit (use "git add" and/or "git commit -a")
