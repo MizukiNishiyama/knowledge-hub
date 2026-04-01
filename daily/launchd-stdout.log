@@ -460,3 +460,84 @@ Changes not staged for commit:
 	modified:   daily/run.log
 
 no changes added to commit (use "git add" and/or "git commit -a")
+完了しました。
+
+## Daily AI Briefing 2026-03-30 生成完了
+
+`daily/2026_03_30/summary.md`（11KB）と `summary.pdf`（119KB）を生成・pushしました。
+
+---
+
+### 本日の主要トピック
+
+**1. フロンティアモデル更新**
+- GPT-5.4 / Gemini 3.1 Flash-Lite / Claude Opus & Sonnet 4.6 が揃い踏み。Artificial Analysis Index でGPT-5.4 ProとGemini 3.1 Proが57点で首位並走
+- Google Genie 3：数分単位のインタラクティブ3D環境生成が可能に
+- Alibaba Qwen 3.5：ArenaHard 95.6点でo1・R1を上回ると発表
+
+**2. AIエージェント・開発ツール**
+- MCPが月次9,700万DLを突破。Linux Foundation傘下で業界標準化が加速
+- MCPサーバーが「企業内シャドーIT」になるリスクが新たな懸念として浮上
+
+**3. AI政策・規制**
+- 日本：AI振興法施行済み、デジタル庁「源内」が2026年度より全省庁展開へ
+- EU：高リスクAI規制が2026年8月に完全施行
+- 米国：コロラド州AI法が2026年より施行（連邦法なし、州先行が継続）
+
+**4. 注目の発言**
+- Jensen Huang（3/23）：「AGI達成済み」と発言。ただし定義は「AIが十億ドル企業を作れる能力」という独自解釈。専門家の反論多数
+- Dario Amodei：ペンタゴン契約をめぐりOpenAIを公開批判、後に謝罪
+
+**5. GitHub Trending**
+- Claude Code関連リポジトリが3本同時ランクイン。`obra/superpowers`が+2,229★でトップ
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   daily/launchd-stdout.log
+	modified:   daily/run.log
+
+no changes added to commit (use "git add" and/or "git commit -a")
+完了です。
+
+---
+
+## Daily AI Briefing 2026-03-31 — 生成完了
+
+`daily/2026_03_31/summary.md` と `summary.pdf` を生成・pushしました。
+
+### 本日のハイライト
+
+**1. フロンティアモデル**
+- OpenAI GPT-5.4（3/5リリース）がGDPvalで83%達成・Computer Use初搭載。Gemini 3.1 Proと57点同率首位
+- Anthropic: memoryが全ユーザーに展開
+- Mistral: Voxtral TTS（音声生成初参入）リリース
+
+**2. エージェント/開発ツール**
+- MCP月間SDK DL 9,700万回突破。Google Colab MCPサーバー公開（3/17）
+- GitHub CopilotがSWE-bench 56%で業界首位。Windsurf価格体系刷新（3/19）
+
+**3. AI政策**
+- 日本: 政府AI「ジェンナイ」5月から10万人規模展開予定
+- EU: 高リスクAI規制 2026年8月完全施行予定
+
+**4. 注目発言**
+- Amodei vs Altman: Pentagon契約をめぐる公開対立が激化（「straight up lies」「safety theater」）
+- Karpathy: 「スロパカリプス」到来を警告
+- Jensen Huang: 「AIインフラに1兆ドルでも不足」
+
+**5. GitHub Trending**
+- Claude Code関連リポジトリが1位・4位を独占（claude-howto +4,150★、claude-code-best-practice +1,342★）
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   daily/launchd-stderr.log
+	modified:   daily/launchd-stdout.log
+	modified:   daily/run.log
+
+no changes added to commit (use "git add" and/or "git commit -a")
