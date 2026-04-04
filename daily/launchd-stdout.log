@@ -541,3 +541,132 @@ Changes not staged for commit:
 	modified:   daily/run.log
 
 no changes added to commit (use "git add" and/or "git commit -a")
+完了しました。
+
+## Daily AI Briefing 2026-04-02 生成完了
+
+`daily/2026_04_02/summary.md` と `summary.pdf` を生成・pushしました。
+
+### 主なトピック
+
+**セクション1 フロンティアモデル**
+- OpenAI: GPT-5.4 (3/5リリース、GDPval 83%)、GPT-5.5「Spud」事前学習完了（未確認）、Soraアプリ終了を公式説明
+- Anthropic: Claude Mythos 漏洩で実在確認（未確認/未リリース）、Claude Operon（生物学特化ワークスペース）公開
+- Google: Gemini 3.1 Pro（ARC-AGI-2で77.1%、16ベンチ中13位1位）
+- Meta: Llama 4 Maverick（400B、1000万トークンコンテキスト）
+- 中国勢: DeepSeek V4近日公開、V3.2は$0.28/Mトークンの低コスト展開
+
+**セクション2 エージェント・開発ツール**
+- MCP Dev Summit 本日NYC開幕（4/2〜3）
+- AAIF（Linux Foundation）がMCP/A2Aのオープンガバナンス化を推進
+
+**セクション3 政策・規制**
+- 日本: 総務省/NICTがAI基盤評価システムを2026年より開始
+- EU: 高リスクAI規定の施行延期提案中
+
+**セクション4 注目発言**
+- Sam Altman: Sora終了・Disney提携見送りの倫理的理由を説明（4/1）
+- Dario Amodei vs Altman: Pentagon契約巡り公開対立（3月）
+- Andrej Karpathy: 「slopacolypse」警告
+
+**セクション5 GitHub Trending**
+- anthropics/claude-code が+10,087★で首位（MCP Dev Summit効果）
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   "career/thoughts/20260401_\345\277\227\346\234\233\347\220\206\347\224\261\345\234\247\347\270\256_latest_plan\345\217\215\346\230\240/summary.md"
+	modified:   daily/launchd-stdout.log
+	modified:   daily/run.log
+
+no changes added to commit (use "git add" and/or "git commit -a")
+完了しました。
+
+---
+
+## Daily AI Briefing 2026-04-03 — 生成完了
+
+**出力ファイル**:
+- `daily/2026_04_03/summary.md`（115行）
+- `daily/2026_04_03/summary.pdf`（133KB、xelatex経由で生成）
+
+### 今日の主なピックアップ
+
+**1. フロンティアモデル**
+- OpenAI GPT-5.4（3月リリース）が現役最前線。GPT-5.5（Spud）はQ2リリース予測（未確認）
+- Anthropic: Message Batches APIのmax_tokens 300k引き上げ、Sonnet 4.5の1Mコンテキストbetaが4/30廃止
+- Gemini 3.1 Pro が2月時点で16ベンチマーク中13首位
+- Meta Llama 4は「フロンティア未達」と酷評。Alibaba Qwen3.6-Plus は快進撃
+
+**2. 開発ツール**
+- Claude Codeが開発者満足度46%でNo.1（Cursor 19%、Copilot 9%）
+- MCP SDK月間9,700万DL、5,800+サーバーで業界標準化
+
+**3. 政策・規制**
+- EU AI Act: 8月2日の主要規定適用に向け4/28のtrilogue交渉が山場
+- 日本: AI促進法施行済み・AI基本計画閣議決定済み、新規動向なし
+
+**4. 発言**
+- Jensen Huang「短期的にAIは人をより忙しくする」（Muskの長期失業論に反論）
+- Dario Amodei vs Altman: 軍事AI契約で明確な立場の違いが露出
+
+**5. GitHub Trending**
+- `oh-my-codex` (+2,852★)、`openscreen` (+2,496★) が急浮上
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   "career/thoughts/20260401_\345\277\227\346\234\233\347\220\206\347\224\261\345\234\247\347\270\256_latest_plan\345\217\215\346\230\240/summary.md"
+	modified:   daily/launchd-stderr.log
+	modified:   daily/launchd-stdout.log
+	modified:   daily/run.log
+
+no changes added to commit (use "git add" and/or "git commit -a")
+完了しました。
+
+---
+
+## Daily AI Briefing 2026-04-04 生成サマリー
+
+**ファイル**: `daily/2026_04_04/summary.md` (12KB) + `summary.pdf` (141KB)
+
+---
+
+### 主要トピック
+
+**1. フロンティアモデル**
+- GPT-5.4・Gemini 3.1 Pro・Claude Sonnet 4.6 の三強が拮抗。性能差は縮小しコスト・適合性が選択基準に
+- Llama 4 Maverick（400B, 10Mコンテキスト）とDeepSeek V3.2がオープン勢として本格競合
+- Claude Mythos 5（10T params）とGPT-5.5はQ2リリース有力（未確認）
+
+**2. エージェント・ツール**
+- Google が Colab MCPサーバーをオープンソース公開 — エージェントからColabをフル操作可能に
+- Cursor Composer 2 リリース（SWE-bench 73.7）、GitHub Copilot エージェントモードGA
+
+**3. 政策・規制**
+- 日本のAI振興法は「強制義務なし」で施行中。EU AI Actは高リスク条項の適用延期検討中
+
+**4. 注目発言**
+- Karpathy: 2026年は「スロパカリプス（低品質AI生成コンテンツ氾濫）」元年と警告
+- Amodei vs Altman: Pentagon契約を巡る公開対立（3月）— AI安全性と軍事応用の価値観衝突が表面化
+
+**5. GitHub Trending 上位**
+- `oh-my-codex` (+2,984) — Codex拡張フレームワーク
+- `openscreen` (+2,855) — Screen Studio代替のOSSデモ動画作成ツール
+- `timesfm` (+912) — Google Research製の時系列予測Foundation Model
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   "career/thoughts/20260401_\345\277\227\346\234\233\347\220\206\347\224\261\345\234\247\347\270\256_latest_plan\345\217\215\346\230\240/summary.md"
+	modified:   daily/launchd-stderr.log
+	modified:   daily/launchd-stdout.log
+	modified:   daily/run.log
+
+no changes added to commit (use "git add" and/or "git commit -a")
